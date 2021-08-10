@@ -1,0 +1,1 @@
+cmd_/home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/modules.order := {   echo /home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/simple.ko; :; } | awk '!x[$$0]++' - > /home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/modules.order

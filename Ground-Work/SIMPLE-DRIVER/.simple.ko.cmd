@@ -1,0 +1,1 @@
+cmd_/home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/simple.ko := ld -r -m elf_x86_64  --build-id=sha1  -T scripts/module.lds -o /home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/simple.ko /home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/simple.o /home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/simple.mod.o;  true

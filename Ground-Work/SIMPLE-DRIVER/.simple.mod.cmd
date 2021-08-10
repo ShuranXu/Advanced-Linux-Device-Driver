@@ -1,0 +1,1 @@
+cmd_/home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/simple.mod := { echo  /home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/simple.o;  echo; } > /home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/simple.mod

@@ -1,0 +1,1 @@
+cmd_/home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/Module.symvers := sed 's/ko$$/o/' /home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/modules.order | scripts/mod/modpost -m -a   -o /home/shuran/Advanced-Linux-Driver/Ground-Work/SIMPLE-DRIVER/Module.symvers -e -i Module.symvers   -T -
