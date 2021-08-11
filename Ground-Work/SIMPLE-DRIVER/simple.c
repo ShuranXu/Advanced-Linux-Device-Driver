@@ -134,11 +134,11 @@ static int __init simple_init(void)
 static void __exit simple_exit(void)
 {
 
- // Free the buffer allocated in init
+  // Free the buffer allocated in init
   kfree(kbuffer);
   printk("Freeing kernel memory address where buffer is pointing: 0x%p\n", kbuffer);
 
-// char driver specific 
+  // char driver specific 
   cdev_del(simple_cdev);
   unregister_chrdev_region(dev, 1);
 

@@ -1,0 +1,1 @@
+cmd_/home/shuran/Advanced-Linux-Driver/Ground-Work/Assignment1/poll.ko := ld -r -m elf_x86_64  --build-id=sha1  -T scripts/module.lds -o /home/shuran/Advanced-Linux-Driver/Ground-Work/Assignment1/poll.ko /home/shuran/Advanced-Linux-Driver/Ground-Work/Assignment1/poll.o /home/shuran/Advanced-Linux-Driver/Ground-Work/Assignment1/poll.mod.o;  true
