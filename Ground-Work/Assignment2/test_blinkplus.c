@@ -34,29 +34,29 @@ int main(int argc, char* argv[])
 	}
 	/* No error checking for failed ioctl is done. Demo only */
 	while (intv<4){
-	printf("\n Setting SCROLL LOCK\n");
-	led= LED_SCROLL;
-	result = ioctl(fd, SETLED,&led );
-	sleep(10);
-	printf("\n Setting NUM LOCK\n");
-	led= LED_NUML;
-	result = ioctl(fd, SETLED,&led );
-	sleep(10);
-	printf("\n Setting CAPS LOCK\n");
-	led= LED_CAPSL;
-	result = ioctl(fd, SETLED,&led );
-	sleep(10);
-	printf("\n Setting ALL LEDS\n");
-	led= ALL_LEDS_ON;
-	result = ioctl(fd, SETLED,&led );
-	sleep(10);
-	printf("\nGETTING LED BLINK INTERVAL\n");
-        result = ioctl(fd, GETINV);
-        printf("LED IS BLINKING AT INTERVAL: %d (sec)\n",result);
-	sleep(10);
-	intv++ ;
-	printf("\n Setting LED BLINK INTERVAL to %d seconds\n",intv);
-	result = ioctl(fd, SETINV,&intv );
-	sleep(10);
+		printf("\n Setting SCROLL LOCK\n");
+		led= LED_SCROLL;
+		result = ioctl(fd, SETLED,&led );
+		sleep(10);
+		printf("\n Setting NUM LOCK\n");
+		led= LED_NUML;
+		result = ioctl(fd, SETLED,&led );
+		sleep(10);
+		printf("\n Setting CAPS LOCK\n");
+		led= LED_CAPSL;
+		result = ioctl(fd, SETLED,&led );
+		sleep(10);
+		printf("\n Setting ALL LEDS\n");
+		led= ALL_LEDS_ON;
+		result = ioctl(fd, SETLED,&led );
+		sleep(10);
+		printf("\nGETTING LED BLINK INTERVAL\n");
+		result = ioctl(fd, GETINV);
+		printf("LED IS BLINKING AT INTERVAL: %d (sec)\n",result);
+		sleep(10);
+		intv++ ;
+		printf("\n Setting LED BLINK INTERVAL to %ld seconds\n",intv);
+		result = ioctl(fd, SETINV,&intv );
+		sleep(10);
 	}
 }

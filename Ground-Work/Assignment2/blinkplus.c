@@ -10,15 +10,30 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
+#include <linux/version.h>
+#include <linux/timer.h>
+#include <linux/version.h>
 #include <linux/workqueue.h>
 
 MODULE_DESCRIPTION("Example module illustrating the use of Keyboard LEDs.");
 MODULE_AUTHOR("Daniele Paolo Scarpazza");
 MODULE_LICENSE("GPL");
 
-struct timer_list my_timer;
+
 struct tty_driver *my_driver;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
+struct timer_list my_timer;
 char kbledstatus = 0;
+#else
+typedef struct 
+{
+	char kbledstatus;
+	struct timer_list my_timer;
+}blinkplus_t;
+
+blinkplus_t blinkplus;
+#endif 
 
 #define BLINK_DELAY   HZ/5
 #define ALL_LEDS_ON   0x07
@@ -39,6 +54,7 @@ char kbledstatus = 0;
  * 
  */
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
 static void my_timer_func(unsigned long ptr)
 {
 	int *pstatus = (int *)ptr;
@@ -64,6 +80,26 @@ static void my_timer_func(unsigned long ptr)
         printk("my_timer_func, %d", *pstatus);
 	add_timer(&my_timer);
 }
+#else 
+static void my_timer_func(struct timer_list * data)
+{
+	// container_of(h, struct sensor_private_data, early_suspend);   
+	blinkplus_t *blinkplusptr = container_of(data, blinkplus_t, my_timer);
+	int *pstatus = (int*)blinkplusptr->kbledstatus;
+
+	if (*pstatus == ALL_LEDS_ON)
+		*pstatus = RESTORE_LEDS;
+	else
+		*pstatus = ALL_LEDS_ON;
+
+	// calling ioctl in timer function may result in hang. -- FIX IT
+	// (my_driver->ops->ioctl) (vc_cons[fg_console].d->port.tty, KDSETLED, *pstatus);
+
+	blinkplus.my_timer.expires = jiffies + BLINK_DELAY;
+    printk("my_timer_func, %d", *pstatus);
+	add_timer(&blinkplus.my_timer);
+}
+#endif 
 
 static int __init kbleds_init(void)
 {
@@ -85,11 +121,16 @@ static int __init kbleds_init(void)
 	/*
 	 * Set up the LED blink timer the first time
 	 */
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
 	init_timer(&my_timer);
 	my_timer.function = my_timer_func;
 	my_timer.data = (unsigned long)&kbledstatus;
 	my_timer.expires = jiffies + BLINK_DELAY;
 	add_timer(&my_timer);
+	#else
+	blinkplus.my_timer.expires = jiffies + BLINK_DELAY;  
+	timer_setup(&blinkplus.my_timer, my_timer_func, 0); 
+	#endif 
 
 	return 0;
 }
@@ -97,7 +138,11 @@ static int __init kbleds_init(void)
 static void __exit kbleds_cleanup(void)
 {
 	printk(KERN_INFO "kbleds: unloading...\n");
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
 	del_timer(&my_timer);
+	#else
+	del_timer(&blinkplus.my_timer);
+	#endif 
 	(my_driver->ops->ioctl) (vc_cons[fg_console].d->port.tty, KDSETLED, RESTORE_LEDS);
 }
 

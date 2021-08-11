@@ -1,0 +1,1 @@
+cmd_/home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment2/blinkplus.mod := { echo  /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment2/blinkplus.o;  echo; } > /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment2/blinkplus.mod

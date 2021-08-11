@@ -8,16 +8,30 @@
 #include <linux/init.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
+#include <linux/version.h>
+#include <linux/timer.h>
 #include <linux/device.h>
 
 
 MODULE_DESCRIPTION("Example driver illustrating the use of Timers and IOCTL.");
-MODULE_AUTHOR("Your Name Here");
+MODULE_AUTHOR("Shuran Xu");
 MODULE_LICENSE("GPL");
 
-struct timer_list my_timer;
 struct tty_driver *my_driver;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
+struct timer_list my_timer;
 char helloplustatus = 0;
+#else
+typedef struct 
+{
+	char helloplustatus;
+	struct timer_list my_timer;
+}helloplus_t;
+
+helloplus_t helloplus;
+#endif 
+
 
 #define MAGIC 'z'
 #define GET_DELAY      _IOR(MAGIC, 1, int *)
@@ -43,46 +57,62 @@ static dev_t   dev;
 
 
 // Timer function 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
 static void my_timer_func(unsigned long ptr)
 {
 	my_timer.expires = jiffies + secs2hello;
 	printk("helloplus: timer %lu %lu\n",jiffies,my_timer.expires);
 	add_timer(&my_timer);
 }
-
+#else
+static void my_timer_func(struct timer_list * data)
+#endif
+{
+	helloplus.my_timer.expires = jiffies + secs2hello;
+	printk("helloplus: timer %lu %lu\n",jiffies,helloplus.my_timer.expires);
+	add_timer(&helloplus.my_timer);
+}
 
 static ssize_t hello_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
       switch(cmd){
-      case  GET_DELAY:
-       	if (!arg)  // Null pointer
-	 return -EINVAL; 
-        printk("GET_DELAY was issued \n");
-       	if (copy_to_user((long *)arg, &secs2hello, sizeof(long)))
-       	 return -EFAULT;
-        printk( "helloplus: GET_DELAY returns :%ld\n",secs2hello);
-        return 0;
-      case SET_DELAY:
-        if (!arg)
-	 return -EINVAL;
-        printk( "helloplus: SET_DELAY returns:  %ld\n", secs2hello);
-        if (copy_from_user(&secs2hello, (long *) arg,  sizeof (long)))
-            return -EFAULT;
-        printk(KERN_INFO "set to:  %ld\n", secs2hello);
-	 /*
-	  *  New timer is requested by user. This version guarantees that 
-	  *  that the timer function itself is not running when it returns
-	  *  This will avoid any race condition in smp environment
-	  */
-	del_timer_sync(&my_timer);
-        my_timer.function = my_timer_func;
-        my_timer.data = (unsigned long)&helloplustatus;
-        my_timer.expires = jiffies + secs2hello;
-        add_timer(&my_timer);
-	return 0;
-	break;
-	default:  	// unknown command 
-	       return -ENOTTY;
+		case  GET_DELAY:
+			if (!arg)  // Null pointer
+				return -EINVAL; 
+			printk("GET_DELAY was issued \n");
+			if (copy_to_user((long *)arg, &secs2hello, sizeof(long)))
+				return -EFAULT;
+			printk( "helloplus: GET_DELAY returns :%ld\n",secs2hello);
+			return 0;
+		case SET_DELAY:
+			if (!arg)
+				return -EINVAL;
+			printk( "helloplus: SET_DELAY returns:  %ld\n", secs2hello);
+			if (copy_from_user(&secs2hello, (long *) arg,  sizeof (long)))
+				return -EFAULT;
+			printk(KERN_INFO "set to:  %ld\n", secs2hello);
+			/*
+			*  New timer is requested by user. This version guarantees that 
+			*  the timer function itself is not running when it returns.
+			*  This will avoid any race condition in smp environment
+			*/
+			
+			#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
+				del_timer_sync(&my_timer);
+				my_timer.function = my_timer_func;
+				my_timer.flags = (unsigned long)&helloplustatus;
+				my_timer.expires = jiffies + secs2hello;
+				add_timer(&my_timer);
+			#else
+				del_timer_sync(&helloplus.my_timer);
+				helloplus.my_timer.expires = jiffies + secs2hello;  /* Set it to expire every second */
+				add_timer(&helloplus.my_timer);
+			#endif 
+
+			return 0;
+			break;
+		default:  	// unknown command 
+			return -ENOTTY;
 	}
      return -ENOTTY;
 }
@@ -125,30 +155,28 @@ static int __init helloplus_init(void)
 	  * unregister it on failure by: unregister_chrdev(DEV_MAJOR,HELLOPLUS);
 	  */
 
-        result = alloc_chrdev_region(&dev, 0, 1, mydev_name);
-        if (result<0) 
-	 return result;
+	result = alloc_chrdev_region(&dev, 0, 1, mydev_name);
+	if (result<0) 
+		return result;
 
-        major = MAJOR(dev);
+    major = MAJOR(dev);
 
 	printk("The device is registered by Major no: %d\n", major);
 
-
 	// Allocate a cdev structure 
-        hello_cdev = cdev_alloc();
+    hello_cdev = cdev_alloc();
 	
 	// Attach hello fops methods with the cdev: hello_cdev->ops=&hello_fops 
-
 	cdev_init (hello_cdev, &hello_fops);
-        hello_cdev->owner = THIS_MODULE;
+    hello_cdev->owner = THIS_MODULE;
 
 	// Connect the assigned major number to the cdev 
-        result = cdev_add(hello_cdev, dev, 1);
-        if (result<0){
-	  printk("Error in registering the module\n");
-          unregister_chrdev_region(dev, 1);
-          return result;
-        }
+    result = cdev_add(hello_cdev, dev, 1);
+    if (result<0){
+		printk("Error in registering the module\n");
+        unregister_chrdev_region(dev, 1);
+        return result;
+    }
 
 	printk(KERN_INFO "helloplus: %d\n",__LINE__);
 
@@ -159,31 +187,33 @@ static int __init helloplus_init(void)
           * loaded and this init function is called.
           */
 
-        hello_class = class_create(THIS_MODULE,mydev_name);
+    hello_class = class_create(THIS_MODULE,mydev_name);
 	if (IS_ERR(hello_class)) {
-                printk(KERN_ERR "Error creating hello class.\n");
-                result = PTR_ERR(hello_class);
-                cdev_del(hello_cdev);
-                unregister_chrdev_region(dev, 1);
-                return -1;
-        }
+		printk(KERN_ERR "Error creating hello class.\n");
+		result = PTR_ERR(hello_class);
+		cdev_del(hello_cdev);
+		unregister_chrdev_region(dev, 1);
+		return -1;
+    }
 
-        device_create(hello_class,NULL,dev,NULL,"helloplus%d",0);
+    device_create(hello_class,NULL,dev,NULL,"helloplus%d",0);
 
 	printk(KERN_INFO "helloplus: %d\n",__LINE__);
 
 	// set up  timer the first time
-
-	init_timer(&my_timer);
-	my_timer.function = my_timer_func;
-	my_timer.data = (unsigned long)&helloplustatus;
-	my_timer.expires = jiffies + secs2hello;  /* Set it to expire every second */
-	add_timer(&my_timer);
-
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
+		init_timer(&my_timer);
+		my_timer.function = my_timer_func;
+		my_timer.flags = (unsigned long)&helloplustatus;
+		my_timer.expires = jiffies + secs2hello;  /* Set it to expire every second */
+		add_timer(&my_timer);
+	#else
+		helloplus.my_timer.expires = jiffies + secs2hello;  /* Set it to expire every second */
+		timer_setup(&helloplus.my_timer, my_timer_func, 0); 
+	#endif
 
 	printk(KERN_INFO "helloplus: %d\n",__LINE__);
 	printk(KERN_INFO "helloplus: loading\n");
-
 
 	return 0;
 }
@@ -191,7 +221,11 @@ static int __init helloplus_init(void)
 static void __exit helloplus_cleanup(void)
 {
 	printk(KERN_INFO "helloplus: unloading...\n");
-	del_timer(&my_timer);
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
+		del_timer(&my_timer);
+	#else
+		del_timer(&helloplus.my_timer);
+	#endif 
 
 	cdev_del(hello_cdev);
 	device_destroy(hello_class, dev);

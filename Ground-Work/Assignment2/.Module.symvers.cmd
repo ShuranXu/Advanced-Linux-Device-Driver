@@ -1,0 +1,1 @@
+cmd_/home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment2/Module.symvers := sed 's/ko$$/o/' /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment2/modules.order | scripts/mod/modpost -m -a   -o /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment2/Module.symvers -e -i Module.symvers   -T -
