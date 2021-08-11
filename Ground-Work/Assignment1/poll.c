@@ -81,7 +81,6 @@ static unsigned int device_poll(struct file *filp, poll_table *wait){
 static ssize_t device_read(struct file *filp, 
                            char *buffer, size_t len, loff_t *offs){
 
-  DECLARE_WAITQUEUE(wait, current); /* contains a pointer to a task struct */
   unsigned int i=0;
 
   if (is_buffer_empty()){ /* no data to read */
@@ -89,23 +88,28 @@ static ssize_t device_read(struct file *filp,
       return -EAGAIN;
   }
 
-  add_wait_queue(&qin, &wait); /* Link our wait struct to the qin waitq */
+/*
+  DECLARE_WAITQUEUE(wait, current); // contains a pointer to a task struct 
+  add_wait_queue(&qin, &wait); // Link our wait struct to the qin waitq 
 
   while(is_buffer_empty()){
     printk(" %s read - blocking \r\n", my_devname);
     set_current_state(TASK_INTERRUPTIBLE);
-    if(!is_buffer_empty()) /* There is a data in device */
+    if(!is_buffer_empty()) // There is a data in device 
       break;  
     schedule();
     if(signal_pending(current)) {
       set_current_state(TASK_RUNNING);
       remove_wait_queue(&qin,&wait);
       return -ERESTARTSYS;
-    } /* singal */
-  } /* while */
+    } // singal 
+  } // while 
 
   set_current_state(TASK_RUNNING);
   remove_wait_queue(&qin,&wait);
+  */
+
+  wait_event_interruptible(qin,!is_buffer_empty());
 
   if (down_interruptible(&sema))
         return -ERESTARTSYS;
@@ -128,11 +132,33 @@ static ssize_t device_read(struct file *filp,
   return i;
 }
 
+
 static ssize_t device_write(struct file *filp, 
                             const char *buffer, size_t len, loff_t *offs){
 
+/*
   //add code to put a process to sleep if no room to write 
-  DECLARE_WAITQUEUE(wait, current); /* contains a pointer to a task struct */
+  DECLARE_WAITQUEUE(wait, current); // contains a pointer to a task struct 
+
+  add_wait_queue(&qout, &wait); // Link our wait struct to the qout waitq 
+
+  while(is_buffer_full()){
+    printk(" %s write - blocking \r\n", my_devname);
+    set_current_state(TASK_INTERRUPTIBLE);
+    if(!is_buffer_full()) // There is a data in device 
+      break;  
+    schedule();
+    if(signal_pending(current)) {
+      set_current_state(TASK_RUNNING);
+      remove_wait_queue(&qout,&wait);
+      return -ERESTARTSYS;
+    } // singal 
+  } // while 
+
+  set_current_state(TASK_RUNNING);
+  remove_wait_queue(&qout,&wait);
+  */
+
   unsigned int i=0;
   int ih;
 
@@ -141,23 +167,7 @@ static ssize_t device_write(struct file *filp,
       return -EAGAIN;
   }
 
-  add_wait_queue(&qout, &wait); /* Link our wait struct to the qout waitq */
-
-  while(is_buffer_full()){
-    printk(" %s write - blocking \r\n", my_devname);
-    set_current_state(TASK_INTERRUPTIBLE);
-    if(!is_buffer_full()) /* There is a data in device */
-      break;  
-    schedule();
-    if(signal_pending(current)) {
-      set_current_state(TASK_RUNNING);
-      remove_wait_queue(&qout,&wait);
-      return -ERESTARTSYS;
-    } /* singal */
-  } /* while */
-
-  set_current_state(TASK_RUNNING);
-  remove_wait_queue(&qout,&wait);
+  wait_event_interruptible(qout,!is_buffer_full());
 
   if(down_interruptible(&sema))  // serialize access to device 
     return -ERESTARTSYS;

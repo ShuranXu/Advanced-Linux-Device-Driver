@@ -28,26 +28,26 @@ Now it is your turn:
 	  there is a space to write  DONE 
 	- Test device read and device write entry points to see if reader and writer are getting blocked on device empty or full conditions. DONE 
 	- Also, test if the blocked reader and writer are waking up when 
-	  device has data to read and space to write .
+	  device has data to read and space to write . DONE 
 	- Add code in poll entry point to implement POLLOUT event. Allow 
 	  process to poll() two file descriptors that correspond to
-	  device read and write.
+	  device read and write.  DONE
 	- Poll returning with POLLIN or POLLOUT event means process
 	  should be able to read and write to the device without blocking. 
 	- Test device_poll using test_pollRW  (Not test_pollR). The program
 	  should complete without blocking. Use strace to see where the 
 	  process is blocked. If it is blocking on read or write, then you
-	  need to fix your driver.
+	  need to fix your driver. DONE
 	- Instead of running make_device.sh script to create device nodes
 	  (/dev/poll_dev), use udev wrapper routines class_create() and 
 	  device_create() to create device nodes dynamically. udev will create 
 	  device nodes at insmod and remove them at rmmod. We will discuss how
-	  udev functions in "Linux Device Model" lecture.  
+	  udev functions in "Linux Device Model" lecture.  DONE
 	- Modify poll.c to use wait_event_interruptible() instead. This will 
 	  hide all the details of adding process to wait queue and checking
 	  condition for wake up. Please browse source code to see how it is
-	  implemented
-        - Driver is not ready to deal with multiple readers and writers.
+	  implemented.  DONE
+    - Driver is not ready to deal with multiple readers and writers.
 	  Identify areas in the driver code that require work. 
 
 	   Example1:If two processes are blocked on poll and device_poll()

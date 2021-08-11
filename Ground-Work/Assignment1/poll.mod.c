@@ -42,19 +42,19 @@ __used __section("__versions") = {
 	{ 0xc3aaf0a9, "__put_user_1" },
 	{ 0x3eeb2322, "__wake_up" },
 	{ 0xcf2a6966, "up" },
-	{ 0x1000e51, "schedule" },
 	{ 0xc5850110, "printk" },
 	{ 0x167e7f9d, "__get_user_1" },
 	{ 0xc959d152, "__stack_chk_fail" },
+	{ 0x1000e51, "schedule" },
+	{ 0x92540fbf, "finish_wait" },
+	{ 0x8c26d495, "prepare_to_wait_event" },
+	{ 0xfe487975, "init_wait_entry" },
 	{ 0x6bd0e573, "down_interruptible" },
-	{ 0x37110088, "remove_wait_queue" },
-	{ 0x4afb2238, "add_wait_queue" },
-	{ 0xaad8c7d6, "default_wake_function" },
-	{ 0xc09f4261, "current_task" },
+	{ 0xa1c76e0a, "_cond_resched" },
 	{ 0xbdfb6dbb, "__fentry__" },
 };
 
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "37CEE0D20048983993FE119");
+MODULE_INFO(srcversion, "C530E37D2642D4946DA4FB6");
