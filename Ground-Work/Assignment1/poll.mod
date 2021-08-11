@@ -1,2 +1,2 @@
-/home/shuran/Advanced-Linux-Driver/Ground-Work/Assignment1/poll.o
+/home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment1/poll.o
 

@@ -67,8 +67,7 @@ static unsigned int device_poll(struct file *filp, poll_table *wait){
     mask |= POLLIN | POLLRDNORM;  /* fd is readable */
   }
 
-  if(!is_buffer_full())
-  {
+  if(!is_buffer_full()){
     printk ("%s - POLLOUT EVENT:ir=%d|iw=%d\n", my_devname,ir,iw);
     mask |= POLLOUT | POLLWRNORM; /* fd is writeable */
   }
@@ -123,6 +122,7 @@ static ssize_t device_read(struct file *filp,
   }
 
   printk("\n %s read - %d bytes \r\n", my_devname, i);
+  // printk(" %s read - iw = %d, ir = %d \r\n", my_devname, iw, ir);
 
   up(&sema);
 

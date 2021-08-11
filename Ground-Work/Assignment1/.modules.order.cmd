@@ -1,1 +1,1 @@
-cmd_/home/shuran/Advanced-Linux-Driver/Ground-Work/Assignment1/modules.order := {   echo /home/shuran/Advanced-Linux-Driver/Ground-Work/Assignment1/poll.ko; :; } | awk '!x[$$0]++' - > /home/shuran/Advanced-Linux-Driver/Ground-Work/Assignment1/modules.order
+cmd_/home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment1/modules.order := {   echo /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment1/poll.ko; :; } | awk '!x[$$0]++' - > /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment1/modules.order
