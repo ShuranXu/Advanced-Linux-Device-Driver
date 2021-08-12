@@ -93,7 +93,13 @@ static int __init mmap_kmalloc_init_module (void) {
 
         printk("kmalloc_area: 0x%p\n", kmalloc_area);
 
-	/* reserve kmalloc memory as pages to make them remapable */
+	/** 
+         * reserve kmalloc memory as pages to make them remapable
+         * Since the pages are mapped to user space, they might be swapped out. 
+         * To avoid this we must set the PG_reserved bit on the page. Enabling is done 
+         * using SetPageReserved() while reseting it (which must be done before freeing 
+         * the memory) is done with ClearPageReserved().
+        */
         for (virt_addr=(unsigned long)kmalloc_area; virt_addr < (unsigned long)kmalloc_area + LEN;
                 virt_addr+=PAGE_SIZE) {
                         SetPageReserved(virt_to_page(virt_addr));
@@ -107,6 +113,9 @@ static int __init mmap_kmalloc_init_module (void) {
 	  *  equivalent of 0 is 48  and 9 is 58. This is read from mmap() by 
 	  *  user level application
 	  */
+        for(i=0;i<10;i++){
+                kmalloc_area[i] = 48 + i;
+        }
 	  
         return 0;
 }

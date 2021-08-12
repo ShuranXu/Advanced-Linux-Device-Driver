@@ -69,7 +69,7 @@ static int __init mmap_vmem_init_module (void) {
         }
         printk("vmalloc_ptr at 0x%p \n", vmalloc_ptr);
 
-  /* reserve vmalloc memory to make them remapable */
+        /* reserve vmalloc memory to make them remapable */
         for (virt_addr=(unsigned long)vmalloc_ptr; 
 	        virt_addr < (unsigned long)vmalloc_ptr + LEN; 
 			virt_addr+=PAGE_SIZE) {
@@ -79,11 +79,13 @@ static int __init mmap_vmem_init_module (void) {
         printk("vmalloc_ptr :0x%p \t physical Address 0x%lx)\n", vmalloc_ptr,
                          virt_to_phys((void *)(vmalloc_ptr)));
         /**
-	  *  Initialize memory with "abcdefghijklmnopqrstuvwxyz" to 
-          *  distinguish between kmalloc and vmalloc initialized memory. 
-	  */
-
-	/* CODE HERE */
+	*  Initialize memory with "abcdefghijklmnopqrstuvwxyz" to 
+        *  distinguish between kmalloc and vmalloc initialized memory. 
+	*/
+        int i;
+        for(i=0;i<26;i++){
+                vmalloc_ptr[i] = 97 + i;
+        }
 
         return 0;
 }
