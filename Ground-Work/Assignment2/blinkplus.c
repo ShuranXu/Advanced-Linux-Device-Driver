@@ -105,7 +105,7 @@ static void my_timer_func(unsigned long ptr){
 	printk(KERN_INFO "in my_timer_func - %lu, info: %d\n", jiffies, info->status);
 	// schedule_work (info->wk);   // system wide work queue
     // For dedicated work queue
-	queue_work(info->wq, info->wk);
+	queue_work(info->wq, &info->wk);
 	add_timer(&my_timer);
 	printk(KERN_INFO "blinkplus: timer %lu %lu\n",jiffies,my_timer.expires);
 }
