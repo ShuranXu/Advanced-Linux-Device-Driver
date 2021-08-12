@@ -1008,6 +1008,13 @@ deps_/home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment2/blinkplus
     $(wildcard include/config/memory/balloon.h) \
     $(wildcard include/config/balloon/compaction.h) \
   include/linux/consolemap.h \
+  include/linux/slab.h \
+    $(wildcard include/config/debug/slab.h) \
+    $(wildcard include/config/failslab.h) \
+    $(wildcard include/config/have/hardened/usercopy/allocator.h) \
+    $(wildcard include/config/slab.h) \
+    $(wildcard include/config/slub.h) \
+    $(wildcard include/config/slob.h) \
   include/generated/uapi/linux/version.h \
 
 /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment2/blinkplus.o: $(deps_/home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Assignment2/blinkplus.o)

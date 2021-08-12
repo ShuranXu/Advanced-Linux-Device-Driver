@@ -10,10 +10,10 @@
 #define SETLED  _IOW(MAGIC, 2, int *)
 #define SETINV  _IOW(MAGIC, 3, int *)
 
-#define LED_SCROLL      0x01
-#define LED_NUML        0x02
-#define LED_CAPSL       0x04
-#define ALL_LEDS_ON     0x07
+#define LED_SCROLL      0x01UL
+#define LED_NUML        0x02UL
+#define LED_CAPSL       0x04UL
+#define ALL_LEDS_ON     0x07UL
 
 #define BLINKPLUS "/dev/blinkplus"
 
@@ -21,10 +21,11 @@ int main(int argc, char* argv[])
 {
 	int fd;
 	int i=0;
-	unsigned int led;
+	unsigned long led;
 	unsigned long intv=1;
 	int result;
 	int cmd;
+	unsigned long ledintv;
 	
 	fd = open(BLINKPLUS,O_RDWR);
 	if(fd == -1)
@@ -34,9 +35,10 @@ int main(int argc, char* argv[])
 	}
 	/* No error checking for failed ioctl is done. Demo only */
 	while (intv<4){
+		
 		printf("\n Setting SCROLL LOCK\n");
 		led= LED_SCROLL;
-		result = ioctl(fd, SETLED,&led );
+		result = ioctl(fd, SETLED, &led);
 		sleep(10);
 		printf("\n Setting NUM LOCK\n");
 		led= LED_NUML;
@@ -51,8 +53,8 @@ int main(int argc, char* argv[])
 		result = ioctl(fd, SETLED,&led );
 		sleep(10);
 		printf("\nGETTING LED BLINK INTERVAL\n");
-		result = ioctl(fd, GETINV);
-		printf("LED IS BLINKING AT INTERVAL: %d (sec)\n",result);
+		result = ioctl(fd, GETINV, &ledintv);
+		printf("LED IS BLINKING AT INTERVAL: %ld (sec)\n",ledintv);
 		sleep(10);
 		intv++ ;
 		printf("\n Setting LED BLINK INTERVAL to %ld seconds\n",intv);

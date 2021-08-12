@@ -49,11 +49,10 @@ static unsigned long secs2hello = INITIAL_SECS;
 
 
 /* This is to create /dev/helloplus device nodes */
-
 static char mydev_name[]="helloplus";  // This will appears in /proc/devices
 static struct cdev  *hello_cdev;
 static struct class *hello_class;
-static dev_t   dev;
+static dev_t dev;
 
 
 // Timer function 
