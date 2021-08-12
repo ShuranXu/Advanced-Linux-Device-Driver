@@ -28,12 +28,9 @@ __used __section("__versions") = {
 	{ 0x243c757b, "module_layout" },
 	{ 0xcb91c2e0, "class_destroy" },
 	{ 0x19e0af64, "device_destroy" },
-	{ 0x37a0cba, "kfree" },
+	{ 0x8c03d20c, "destroy_workqueue" },
 	{ 0x3c12dfe, "cancel_work_sync" },
 	{ 0x2b68bd2f, "del_timer" },
-	{ 0x8c03d20c, "destroy_workqueue" },
-	{ 0x3b29a28b, "kmem_cache_alloc_trace" },
-	{ 0x8b1f4bcb, "kmalloc_caches" },
 	{ 0xdf9208c0, "alloc_workqueue" },
 	{ 0xc38c83b8, "mod_timer" },
 	{ 0xc6f46339, "init_timer_key" },
@@ -47,7 +44,6 @@ __used __section("__versions") = {
 	{ 0xe3ec2f2b, "alloc_chrdev_region" },
 	{ 0x97934ecf, "del_timer_sync" },
 	{ 0x6b10bee1, "_copy_to_user" },
-	{ 0x58fefba8, "pv_ops" },
 	{ 0x13c49cc2, "_copy_from_user" },
 	{ 0x24d273d1, "add_timer" },
 	{ 0xc5b6f236, "queue_work_on" },
@@ -64,4 +60,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "A6DE70BF2006777CCB00801");
+MODULE_INFO(srcversion, "3E33E8C6F7734416C3397C9");

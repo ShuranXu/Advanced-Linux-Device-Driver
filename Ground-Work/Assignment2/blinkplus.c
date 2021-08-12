@@ -17,6 +17,9 @@
 #include <linux/workqueue.h>
 
 
+#include <linux/smp.h>
+
+
 MODULE_DESCRIPTION("Example module illustrating the use of Keyboard LEDs.");
 MODULE_AUTHOR("Daniele Paolo Scarpazza");
 MODULE_LICENSE("GPL");
@@ -40,7 +43,7 @@ struct tty_driver *my_driver;
 typedef struct blink_s {
 	unsigned int               status;
     unsigned long              blink_delay;
-    struct work_struct         *wk;    // work
+    struct work_struct         wk;    // work
     struct workqueue_struct    *wq;   // work queue
 } blink_info_t;	
 
@@ -104,20 +107,21 @@ static void my_timer_func(unsigned long ptr){
     // For dedicated work queue
 	queue_work(info->wq, info->wk);
 	add_timer(&my_timer);
-	printk(KERN_INFO "\nblinkplus: timer %lu %lu\n",jiffies,my_timer.expires);
+	printk(KERN_INFO "blinkplus: timer %lu %lu\n",jiffies,my_timer.expires);
 }
 #else 
 static void my_timer_func(struct timer_list *ptr){
 
 	blinkplus_t *blinkplusptr = container_of(ptr, blinkplus_t, my_timer);
-	blink_info_t info = blinkplusptr->info;
-	blinkplusptr->my_timer.expires = jiffies + info.blink_delay;
-	printk(KERN_INFO "in my_timer_func - %lu, info: %d\n", jiffies, info.status);
+	blinkplusptr->my_timer.expires = jiffies + blinkplusptr->info.blink_delay;
+
+	// printk(KERN_INFO "my_timer_func - running CPU : %d\n", get_cpu());
+	printk(KERN_INFO "in my_timer_func - %lu, info: %d\n", jiffies, blinkplusptr->info.status);
 	// schedule_work (blinkplusptr.info->wk);   // system wide work queue
     // For dedicated work queue
-    queue_work(info.wq, info.wk);
+    queue_work(blinkplusptr->info.wq, &blinkplusptr->info.wk);
 	add_timer(&blinkplusptr->my_timer);
-	printk(KERN_INFO "\nblinkplus: timer %lu %lu\n",jiffies,blinkplusptr->my_timer.expires);
+	printk(KERN_INFO "blinkplus: timer %lu %lu\n",jiffies,blinkplusptr->my_timer.expires);
 }
 #endif 
 
@@ -129,10 +133,6 @@ static void my_timer_func(struct timer_list *ptr){
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
 static void do_work(struct work_struct *work){
 
-	unsigned long flags;
-	/* Serialize access */
-  	spin_lock_irqsave(&lock, flags);
-
 	blink_info_t *info = container_of(&work, blink_info_t, wk);
 	unsigned int *pstatus = (unsigned int *)&info->status;
 
@@ -142,7 +142,6 @@ static void do_work(struct work_struct *work){
 		*pstatus = kbledstatus & ALL_LEDS_ON;
 
 	printk (KERN_INFO "\n *pstatus:%d  ledstatus:%ld", *pstatus, kbledstatus);
-	spin_unlock_irqrestore(&lock, flags);
 	(my_driver->ops->ioctl) (vc_cons[fg_console].d->port.tty, KDSETLED, *pstatus);
 }
 #else
@@ -152,7 +151,7 @@ static void do_work(struct work_struct *work){
 	/* Serialize access */
   	spin_lock_irqsave(&lock, flags);
 
-	blink_info_t *info = container_of(&work, blink_info_t, wk);
+	blink_info_t *info = container_of(work, blink_info_t, wk);
 	unsigned int *pstatus = (unsigned int *)&info->status;
 
 	if (*pstatus == ALL_LEDS_ON)
@@ -160,7 +159,7 @@ static void do_work(struct work_struct *work){
 	else
 		*pstatus = blinkplus.kbledstatus & ALL_LEDS_ON;
 
-	printk (KERN_INFO "\n *pstatus:%d  ledstatus:%ld", *pstatus, blinkplus.kbledstatus);
+	printk(KERN_INFO "\n *pstatus:%d  ledstatus:%ld", *pstatus, blinkplus.kbledstatus);
 	spin_unlock_irqrestore(&lock, flags);
 	(my_driver->ops->ioctl) (vc_cons[fg_console].d->port.tty, KDSETLED, *pstatus);
 }
@@ -200,7 +199,7 @@ static ssize_t blink_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 		case SETLED:
 			if (!arg)
 				return -EINVAL;
-			if (copy_from_user(&kbledstatus, (long *) arg,  sizeof (long)))
+			if (copy_from_user(&kbledstatus, (unsigned long *) arg,  sizeof (unsigned long)))
 				return -EFAULT;
 			printk(KERN_INFO "SETLED set to:  %ld\n", kbledstatus);
 			return 0;
@@ -243,7 +242,6 @@ static ssize_t blink_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 			if (!arg)
 				return -EINVAL;
 			if (copy_from_user(&blinkplus.kbledstatus, (unsigned long *) arg,  sizeof (unsigned long))){
-				spin_unlock(&lock);
 				return -EFAULT;
 			}
 			printk(KERN_INFO "SETLED set to:  %ld\n", blinkplus.kbledstatus);
@@ -339,19 +337,9 @@ static int __init kbleds_init(void){
 		unregister_chrdev_region(dev, 1);
 		return -1;
 	}
-	info.wk = kmalloc(sizeof(struct work_struct), GFP_KERNEL);
-	if(!info.wk){
-		printk(KERN_ERR "Error creating work struct.\n");
-		cdev_del(blink_cdev);
-		unregister_chrdev_region(dev, 1);
-		destroy_workqueue(info.wq);
-		return -1;
-	}
-	INIT_WORK(info.wk, do_work);
+	INIT_WORK(&info.wk, do_work);
 	#else
 	blinkplus.info.blink_delay = BLINK_DELAY;
-	blinkplus.info.status = 0;
-	blinkplus.kbledstatus = 1;
 	blinkplus.my_timer.expires = jiffies + BLINK_DELAY;  
 	timer_setup(&blinkplus.my_timer, my_timer_func, 0); 
 	/* setup timer interval to based on TIMEOUT Macro */
@@ -365,15 +353,8 @@ static int __init kbleds_init(void){
 		unregister_chrdev_region(dev, 1);
 		return -1;
 	}
-	blinkplus.info.wk = kmalloc(sizeof(struct work_struct), GFP_KERNEL);
-	if(!blinkplus.info.wk){
-		printk(KERN_ERR "Error creating work struct.\n");
-		cdev_del(blink_cdev);
-		unregister_chrdev_region(dev, 1);
-		destroy_workqueue(blinkplus.info.wq);
-		return -1;
-	}
-	INIT_WORK(blinkplus.info.wk, do_work);
+
+	INIT_WORK(&blinkplus.info.wk, do_work);
 	#endif 
 
 	printk(KERN_INFO "blinkplus: %d\n",__LINE__);
@@ -386,14 +367,12 @@ static void __exit kbleds_cleanup(void){
 	printk(KERN_INFO "kbleds: unloading...\n");
 	#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
 	del_timer(&my_timer);
-	cancel_work_sync(info.wk);
+	cancel_work_sync(&info.wk);
 	destroy_workqueue(info.wq);
-	kfree(info.wk);
 	#else
 	del_timer(&blinkplus.my_timer);
-	cancel_work_sync(blinkplus.info.wk);
+	cancel_work_sync(&blinkplus.info.wk);
 	destroy_workqueue(blinkplus.info.wq);
-	kfree(blinkplus.info.wk);
 	#endif 
 	(my_driver->ops->ioctl) (vc_cons[fg_console].d->port.tty, KDSETLED, RESTORE_LEDS);
 
