@@ -5,10 +5,14 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <asm/uaccess.h>
+#include <asm/io.h>
 #include <linux/init.h>
 #include <linux/cdev.h>
+#include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/version.h>
+#include <linux/slab.h> // for kmalloc
+#include <linux/vmalloc.h> //for vmalloc
 #include <linux/kdev_t.h>
 #include <linux/proc_fs.h>
 #include <linux/device.h>
@@ -27,7 +31,7 @@ static char *vmalloc_ptr = NULL;
 
 
 /* This is to create /dev/mmaper device nodes */
-static char dev_name[]="mmaper";  
+static char mmap_dev_name[]="mmaper";  
 static struct cdev  *mmaper_cdev;
 static struct class *mmaper_class;
 static dev_t dev;
@@ -54,7 +58,12 @@ static int mmap_kmalloc(struct file * filp, struct vm_area_struct * vma) {
      * vma->>vm_page_prot: protection bits received from the application
      */
 
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
     vma->vm_flags |= VM_RESERVED;
+    #else
+    vma->vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP);
+    #endif 
+
     ret = remap_pfn_range(
         vma, 
         vma->vm_start,
@@ -87,18 +96,23 @@ static int mmap_vmem(struct file *filp, struct vm_area_struct *vma){
     * vmalloc_to_pfn(vmalloc_area_prt)
 	* instead to get the page frame number of each virtual page
 	*/
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
     vma->vm_flags |= VM_RESERVED;
-    while (length > 0) {
-            pfn = vmalloc_to_pfn(vmalloc_area_ptr);
-            printk("vmalloc_area_ptr: 0x%p \n", vmalloc_area_ptr);
+    #else
+    vma->vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP);
+    #endif 
 
-            if ((ret = remap_pfn_range(vma, start, pfn, PAGE_SIZE,
-                                        vma->vm_page_prot)) < 0) {
-                    return ret;
-            }
-            start += PAGE_SIZE;
-            vmalloc_area_ptr += PAGE_SIZE;
-            length -= PAGE_SIZE;
+    while (length > 0) {
+        pfn = vmalloc_to_pfn(vmalloc_area_ptr);
+        printk("vmalloc_area_ptr: 0x%p \n", vmalloc_area_ptr);
+
+        if ((ret = remap_pfn_range(vma, start, pfn, PAGE_SIZE,
+                                    vma->vm_page_prot)) < 0) {
+                return ret;
+        }
+        start += PAGE_SIZE;
+        vmalloc_area_ptr += PAGE_SIZE;
+        length -= PAGE_SIZE;
     }
     return 0;
 }
@@ -106,8 +120,6 @@ static int mmap_vmem(struct file *filp, struct vm_area_struct *vma){
 static int mmap_kmalloc_init(void) {
 
     int i;
-    int ret;
-
     /**
      * kmalloc() returns memory in bytes instead of PAGE_SIZE
      * mmap memory should be PAGE_SIZE and aligned on a PAGE boundary.
@@ -145,7 +157,7 @@ static int mmap_kmalloc_init(void) {
                     SetPageReserved(virt_to_page(virt_addr));
     }
     printk("kmalloc_area: 0x%p\n" , kmalloc_area);
-    printk("kmalloc_area :0x%p \t physical Address 0x%lx)\n", kmalloc_area,
+    printk("kmalloc_area :0x%p \t physical Address 0x%llx)\n", kmalloc_area,
                         virt_to_phys((void *)(kmalloc_area)));
 
     /**
@@ -153,9 +165,9 @@ static int mmap_kmalloc_init(void) {
      *  equivalent of 0 is 48  and 9 is 58. This is read from mmap() by 
      *  user level application
      */
-    for(i=0;i<10;i++){
-            kmalloc_area[i] = 48 + i;
-    }
+    // for(i=0;i<10;i++){
+    //         kmalloc_area[i] = 48 + i;
+    // }
     
     return 0;
 }
@@ -163,9 +175,10 @@ static int mmap_kmalloc_init(void) {
 static int mmap_vmem_init(void) {
 
     unsigned long virt_addr;
+    int i;
 
 	/* Allocate  memory  with vmalloc. It is already page aligned */
-    vmalloc_ptr = ((char *)vmalloc(LEN);
+    vmalloc_ptr = (char *)vmalloc(LEN);
     if (!vmalloc_ptr) {
             printk("vmalloc failed\n");
             return -ENOMEM;
@@ -179,16 +192,16 @@ static int mmap_vmem_init(void) {
                         SetPageReserved(vmalloc_to_page((unsigned long *)virt_addr));
                     }
     printk("vmalloc_ptr: 0x%p\n" , vmalloc_ptr);
-    printk("vmalloc_ptr :0x%p \t physical Address 0x%lx)\n", vmalloc_ptr,
+    printk("vmalloc_ptr :0x%p \t physical Address 0x%llx)\n", vmalloc_ptr,
                         virt_to_phys((void *)(vmalloc_ptr)));
     /**
 	*  Initialize memory with "abcdefghijklmnopqrstuvwxyz" to 
-        *  distinguish between kmalloc and vmalloc initialized memory. 
+    *  distinguish between kmalloc and vmalloc initialized memory. 
 	*/
-    int i;
-    for(i=0;i<26;i++){
-            vmalloc_ptr[i] = 97 + i;
-    }
+   
+    // for(i=0;i<26;i++){
+    //         vmalloc_ptr[i] = 97 + i;
+    // }
     return 0;
 }
 
@@ -214,7 +227,7 @@ static void mmap_vmem_cleanup(void) {
     vfree(vmalloc_ptr);
 }
 
-static int mmaper_open(struct inode *inode, struct file *file){
+static int mmaper_open(struct inode *inode, struct file *filp){
 
     /**
      * Here we use kmalloc when the minor number is 0;
@@ -228,35 +241,36 @@ static int mmaper_open(struct inode *inode, struct file *file){
         mmap_vmem_init();
 
     // store the device minor number
-    *(file->private_data) = minor_num;
+    *(int*)(filp->private_data) = minor_num;
 
 	return 0;
 }
 
-static int mmaper_release(struct inode *inode, struct file *file){
+static int mmaper_release(struct inode *inode, struct file *filp){
 
-	if(!MINOR(inode->i_rdev)) 
+	if(!MINOR(inode->i_rdev)){
         mmap_kmalloc_cleanup();
-    else
+    } 
+    else{
         mmap_vmem_cleanup();
-
+    }
+        
 	return 0;
 }
 
-static int mmappr_mmap(struct file *file, struct vm_area_struct *vma) {
+static int mmappr_mmap(struct file *filp, struct vm_area_struct *vma) {
 
-    if(!*(file->private_data)){
+    if(!*((int*)(filp->private_data))){
         return mmap_kmalloc(filp,vma);
     }
-    else{
-        return mmap_vmem(filp,vma);
-    }
+    
+    return mmap_vmem(filp,vma);
 }
 
 static struct file_operations mmaper_fops = {
 	open: 	 mmaper_open,
 	release: mmaper_release,
-	map:     mmappr_mmap,
+	mmap:     mmappr_mmap,
 	owner:	 THIS_MODULE
 };
 
@@ -274,7 +288,7 @@ static int __init mmaper_init(void){
 	  * unregister it on failure by: unregister_chrdev(DEV_MAJOR,HELLOPLUS);
 	  */
 
-	result = alloc_chrdev_region(&dev, 0, 2, dev_name);
+	result = alloc_chrdev_region(&dev, 0, 2, mmap_dev_name);
 	if (result<0) 
 		return result;
 
@@ -306,7 +320,7 @@ static int __init mmaper_init(void){
     * loaded and this init function is called.
     */
 
-    mmaper_class = class_create(THIS_MODULE, dev_name);
+    mmaper_class = class_create(THIS_MODULE, mmap_dev_name);
 	if (IS_ERR(mmaper_class)) {
 		printk(KERN_ERR "Error creating hello class.\n");
 		result = PTR_ERR(mmaper_class);
