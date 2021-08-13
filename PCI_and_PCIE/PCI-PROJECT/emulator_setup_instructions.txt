@@ -1,0 +1,110 @@
+
+emulated RTL 8139 Setup Instructions
+
+Instructions on setting up the system for PCI project with emulated RTL 8139.
+
+You may require to install following packages:
+
+$ sudo apt install qemu
+
+$ sudo apt install qemu-system
+
+$ sudo apt install qemu-utils
+
+$ sudo apt install uml-utilities
+
+$ sudo apt install dnsmasq
+
+$ sudo apt install tigervnc-viewer
+
+$ sudo apt install openssh-server
+
+$ sudo apt install bridge-utils
+
+$ sudo apt install net-tools
+
+Download ubuntu image that you will install as Virtual Machine (VM)
+
+$ wget http://old-releases.ubuntu.com/releases/14.04.0/ubuntu-14.04.5-server-amd64.iso (Links to an external site.)
+
+Create a qemu disk image where ubuntu will be  installed
+$ qemu-img create -f qcow2 ubuntu_14_04.img 128G
+
+Open a terminal and run the following command to install Ubuntu in VM from the ISO image that you downloaded
+$ qemu-system-x86_64 -enable-kvm -m 4096 -netdev user,id=e1000 -cpu host -device e1000,netdev=e1000,mac=52:54:00:12:34:56 -cdrom ubuntu-14.04.5-server-amd64.iso -hda ubuntu_14_04.img -vnc :1
+
+On second terminal start vncviewer to connect to VM console for installing Ubuntu
+
+$ vncviewer localhost:1
+
+That should open a console to Ubuntu install. Complete the Ubuntu install. Consider installing openssh-server for to  ssh to VM from the host. Once install is completed, ubuntu will reboot, Login via user that you have created during install. Halt the VM by running:
+
+ubuntuVM $ sudo halt
+
+That will shutdown the VM.
+
+On the other terminal, terminate the session that you use to install ubuntu by <cntl><c>
+
+Now start or boot  VM with different options and emulated RTL8139 NIC. Copy/paste the following script into a file, call it "startvm"
+
+----cut here---
+#!/bin/sh
+
+err_exit() {
+echo $1
+exit 1
+}
+
+warn() {
+echo $1
+}
+
+if [ `id -u` -ne 0 ]; then
+err_exit "This script must be run as root"
+fi
+
+# Setup networking
+
+if ! ifconfig tap0 > /dev/null 2>&1; then
+echo "Setting up networking"
+tunctl || err_exit "Error creating tap0"
+ip addr flush dev tap0 || err_exit "ip addr flush"
+ip addr add 192.168.1.1/26 dev tap0 || err_exit "ip addr add"
+ip link set dev tap0 up || err_exit "ip link set"
+/bin/sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward' \
+|| err_exit "ip_forward"
+
+iptables -t nat -A POSTROUTING -s 192.168.1.0/26 -j MASQUERADE \
+|| err_exit "iptables"
+dnsmasq -F 192.168.1.2,192.168.1.2 -a 192.168.1.1 -z \
+|| err_exit "dnsmasq"
+fi
+
+# Start the guest
+qemu-system-x86_64 -enable-kvm -m 4096 -hda ubuntu_14_04.img -vnc :1 \
+-netdev tap,id=e1000,ifname=tap0,script=no -device virtio-net,netdev=e1000 \
+-netdev user,id=rtl8139 -device rtl8139,netdev=rtl8139
+
+-------end------
+
+Save it and then execute the script
+
+$ sudo ./startvm
+
+Connect to console using VNC viewer at localhost:1
+
+If you have installed openssh-server then you can also ssh to VM. However, to do the project, consider using a console.
+
+ssh your_user_name@192.168.1.2
+
+Once login to VM, run the following command:
+
+$ lspci
+
+$lspci -v
+
+You should see RTL-8100/8101L/8139 Fast Ethernet Adopter. This is an emulated NIC with 8139 drive bound to it. That emulate hardware will act like RTL8130 NIC Hardware device.  To learn how emulated hardware works in qemu, please visit the link:
+
+QEMU Device Emulation
+
+I suggest keeping interface name the same as default "eth0", set by "DRV_NAME".  This way you don't need to set IP address/netmask as it is set automatically via instructions provided in /etc/netwrok/interfaces.
