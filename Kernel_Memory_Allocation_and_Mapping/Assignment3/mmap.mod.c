@@ -38,9 +38,11 @@ __used __section("__versions") = {
 	{ 0xe3ec2f2b, "alloc_chrdev_region" },
 	{ 0x3744cf36, "vmalloc_to_pfn" },
 	{ 0x6aa01b2f, "remap_pfn_range" },
-	{ 0xc5850110, "printk" },
+	{ 0x3b29a28b, "kmem_cache_alloc_trace" },
+	{ 0x8b1f4bcb, "kmalloc_caches" },
 	{ 0xd6ee688f, "vmalloc" },
 	{ 0xb8b9f817, "kmalloc_order_trace" },
+	{ 0xc5850110, "printk" },
 	{ 0x4c9d28b0, "phys_base" },
 	{ 0x999e8297, "vfree" },
 	{ 0xda5087c1, "vmalloc_to_page" },
@@ -53,4 +55,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "98723C40BCC6F4C084C4127");
+MODULE_INFO(srcversion, "8FF51F4A225F659A64767C9");

@@ -108,7 +108,7 @@ static int mmap_vmem(struct file *filp, struct vm_area_struct *vma){
 
         if ((ret = remap_pfn_range(vma, start, pfn, PAGE_SIZE,
                                     vma->vm_page_prot)) < 0) {
-                return ret;
+            return ret;
         }
         start += PAGE_SIZE;
         vmalloc_area_ptr += PAGE_SIZE;
@@ -165,9 +165,9 @@ static int mmap_kmalloc_init(void) {
      *  equivalent of 0 is 48  and 9 is 58. This is read from mmap() by 
      *  user level application
      */
-    // for(i=0;i<10;i++){
-    //         kmalloc_area[i] = 48 + i;
-    // }
+    for(i=0;i<10;i++){
+            kmalloc_area[i] = 48 + i;
+    }
     
     return 0;
 }
@@ -199,9 +199,9 @@ static int mmap_vmem_init(void) {
     *  distinguish between kmalloc and vmalloc initialized memory. 
 	*/
    
-    // for(i=0;i<26;i++){
-    //         vmalloc_ptr[i] = 97 + i;
-    // }
+    for(i=0;i<26;i++){
+            vmalloc_ptr[i] = 97 + i;
+    }
     return 0;
 }
 
@@ -230,37 +230,45 @@ static void mmap_vmem_cleanup(void) {
 static int mmaper_open(struct inode *inode, struct file *filp){
 
     /**
-     * Here we use kmalloc when the minor number is 0;
+     * Here we use kmalloc when the minor number is even;
      * we use vmalloc if no. 
      */
 
-    int minor_num = MINOR(inode->i_rdev);
-	if(!minor_num) 
+    unsigned int minor_num = MINOR(inode->i_rdev);
+
+    printk("mmaper_open: minor number is %d\n", minor_num);
+
+	if(minor_num % 2 == 0) 
         mmap_kmalloc_init();
     else
         mmap_vmem_init();
 
+    if(!filp->private_data){
+        filp->private_data = (void*)kmalloc(sizeof(unsigned int), GFP_KERNEL);
+    }
+
     // store the device minor number
-    *(int*)(filp->private_data) = minor_num;
+    *(unsigned int*)(filp->private_data) = minor_num;
 
 	return 0;
 }
 
 static int mmaper_release(struct inode *inode, struct file *filp){
 
-	if(!MINOR(inode->i_rdev)){
+	if(*((unsigned int*)(filp->private_data)) % 2 == 0){
         mmap_kmalloc_cleanup();
     } 
     else{
         mmap_vmem_cleanup();
     }
-        
+
+    kfree(filp->private_data);
 	return 0;
 }
 
 static int mmappr_mmap(struct file *filp, struct vm_area_struct *vma) {
 
-    if(!*((int*)(filp->private_data))){
+    if(*((unsigned int*)(filp->private_data)) % 2 == 0){
         return mmap_kmalloc(filp,vma);
     }
     
@@ -288,7 +296,7 @@ static int __init mmaper_init(void){
 	  * unregister it on failure by: unregister_chrdev(DEV_MAJOR,HELLOPLUS);
 	  */
 
-	result = alloc_chrdev_region(&dev, 0, 2, mmap_dev_name);
+	result = alloc_chrdev_region(&dev, 0, 3, mmap_dev_name);
 	if (result<0) 
 		return result;
 
@@ -304,7 +312,7 @@ static int __init mmaper_init(void){
     mmaper_cdev->owner = THIS_MODULE;
 
 	// Connect the assigned major number to the cdev 
-    result = cdev_add(mmaper_cdev, dev, 1);
+    result = cdev_add(mmaper_cdev, dev, 3);
     if (result<0){
 		printk("Error in registering the module\n");
         unregister_chrdev_region(dev, 1);

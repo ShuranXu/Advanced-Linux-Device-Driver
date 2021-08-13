@@ -7,7 +7,7 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#define BUFSIZE 64*1024
+#define BUFSIZE 16*1024
 
 int main()
 {
@@ -16,7 +16,7 @@ int main()
         size_t size = BUFSIZE;
         char buffer[BUFSIZE];
 
-        fd = open("/dev/mmaper", O_RDWR | O_SYNC);
+        fd = open("/dev/vmalloc_dev", O_RDWR | O_SYNC);
         if( fd == -1) {
                 printf("open error...\n");
                 return -1;
@@ -36,7 +36,7 @@ int main()
                 printf("mmap() failed\n");
                 return -1;
         }
-
+        
         /**
 	  * Now mmap memory region can be access as user memory. No syscall 
           * overhead! 
