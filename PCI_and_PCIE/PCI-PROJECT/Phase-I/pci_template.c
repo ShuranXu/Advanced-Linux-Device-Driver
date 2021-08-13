@@ -425,6 +425,6 @@ static void __exit pci_rtl8139_exit(void)
 module_init(pci_rtl8139_init);
 module_exit(pci_rtl8139_exit);
 
-MODULE_AUTHOR(" ");
+MODULE_AUTHOR("Shuran Xu");
 MODULE_DESCRIPTION("PCI Driver for Realtek rtl8139 PCI Ethernet Wired card");
 MODULE_LICENSE("Dual BSD/GPL");

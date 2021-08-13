@@ -24,6 +24,7 @@ unsigned long mmio_size;	// size of the register-space
 void	*io;			// virtual address of ioremap
 char legend[] = "RealTek-8139 Network Controller register-values";
 
+// All the constants come from RTL8139-datasheet
 int my_proc( char *buf, char **s, off_t off, int bufsz, int *eof, void *data )
 {
 	int	i, len = 0;
