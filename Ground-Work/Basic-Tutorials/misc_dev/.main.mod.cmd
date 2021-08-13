@@ -1,0 +1,1 @@
+cmd_/home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Basic-Tutorials/misc_dev/main.mod := { echo  /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Basic-Tutorials/misc_dev/main.o;  echo; } > /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Basic-Tutorials/misc_dev/main.mod

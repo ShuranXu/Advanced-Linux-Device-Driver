@@ -1,0 +1,1 @@
+cmd_/home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Basic-Tutorials/basic_irq_handler/main.mod := { echo  /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Basic-Tutorials/basic_irq_handler/main.o;  echo; } > /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Basic-Tutorials/basic_irq_handler/main.mod
