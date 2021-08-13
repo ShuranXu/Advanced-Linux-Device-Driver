@@ -9,6 +9,10 @@
 
 #define BUFSIZE 16*1024
 
+// const char device[] = "/dev/mmaper";
+const char device[] = "/dev/kmalloc_dev";
+// const char device[] = "/dev/vmalloc_dev";
+
 int main()
 {
         int i, fd, len, wlen ;
@@ -16,11 +20,15 @@ int main()
         size_t size = BUFSIZE;
         char buffer[BUFSIZE];
 
-        fd = open("/dev/kmalloc_dev", O_RDWR | O_SYNC);
+        // fd = open("/dev/kmalloc_dev", O_RDWR | O_SYNC);
+        // fd = open("/dev/vmalloc_dev", O_RDWR | O_SYNC);
+        fd = open(device, O_RDWR | O_SYNC);
         if( fd == -1) {
                 printf("open error...\n");
                 return -1;
         }
+
+        printf("accessing %s\n", device);
 	
 	/** 
 	  * Requesting mmaping  at offset 0 on device memory, last argument. 
@@ -50,7 +58,7 @@ int main()
         printf("mptr is %p\n", mptr);
 
         /* write to mmap memory */
-        memcpy(mptr, "MY TEST STRING!", 16);
+        memcpy(mptr, "MY TEST STRING!\n", 16);
         memset(buffer, 0, size);
         memcpy(buffer, mptr, size-1);
         printf("mmap:  '%s'\n", buffer);

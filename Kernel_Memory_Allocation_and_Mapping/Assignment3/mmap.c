@@ -390,15 +390,3 @@ static void __exit mmaper_cleanup(void){
 
 module_init(mmaper_init);
 module_exit(mmaper_cleanup);
-
-
-
-
-
-
-
-
-
-
-
-
