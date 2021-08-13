@@ -1005,6 +1005,8 @@ deps_/home/shuran/Advanced-Linux-Device-Driver/Kernel_Memory_Allocation_and_Mapp
     $(wildcard include/config/memory/balloon.h) \
     $(wildcard include/config/balloon/compaction.h) \
   include/generated/uapi/linux/version.h \
+  include/linux/proc_fs.h \
+    $(wildcard include/config/proc/pid/arch/status.h) \
   include/linux/slab.h \
     $(wildcard include/config/debug/slab.h) \
     $(wildcard include/config/failslab.h) \
@@ -1012,8 +1014,6 @@ deps_/home/shuran/Advanced-Linux-Device-Driver/Kernel_Memory_Allocation_and_Mapp
     $(wildcard include/config/slab.h) \
     $(wildcard include/config/slub.h) \
     $(wildcard include/config/slob.h) \
-  include/linux/proc_fs.h \
-    $(wildcard include/config/proc/pid/arch/status.h) \
 
 /home/shuran/Advanced-Linux-Device-Driver/Kernel_Memory_Allocation_and_Mapping/Assignment3/mmap.o: $(deps_/home/shuran/Advanced-Linux-Device-Driver/Kernel_Memory_Allocation_and_Mapping/Assignment3/mmap.o)
 

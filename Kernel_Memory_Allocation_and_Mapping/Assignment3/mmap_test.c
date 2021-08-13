@@ -16,7 +16,7 @@ int main()
         size_t size = BUFSIZE;
         char buffer[BUFSIZE];
 
-        fd = open("/dev/vmalloc_dev", O_RDWR | O_SYNC);
+        fd = open("/dev/kmalloc_dev", O_RDWR | O_SYNC);
         if( fd == -1) {
                 printf("open error...\n");
                 return -1;

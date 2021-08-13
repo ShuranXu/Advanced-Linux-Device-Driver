@@ -11,6 +11,7 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/version.h>
+#include <linux/proc_fs.h> //for proc entry
 #include <linux/slab.h> // for kmalloc
 #include <linux/vmalloc.h> //for vmalloc
 #include <linux/kdev_t.h>
@@ -35,8 +36,31 @@ static char mmap_dev_name[]="mmaper";
 static struct cdev  *mmaper_cdev;
 static struct class *mmaper_class;
 static dev_t dev;
-// static struct proc_dir_entry *proc_mapper;
+static struct proc_dir_entry *proc_file_entry;
+static unsigned int last_minor;
 
+
+static ssize_t read_proc(struct file *filp, char *buf, size_t count, loff_t *offp){
+
+    /**
+     * We need to send eof or 0 in order for the user program to know there is no more data.
+     * loff_t is the position in file. Change it non-zero value on first read and then in next 
+     * read return 0
+    */
+
+    if((int) *offp > 0){
+        return 0;
+    }
+
+    *offp = 1;
+
+    if(last_minor % 2 == 0){
+        return (sprintf(buf, "\n %s", kmalloc_area)) ;
+    }
+    else{
+        return (sprintf(buf, "\n %s", vmalloc_ptr)) ;
+    }
+}
 
 static int mmap_kmalloc(struct file * filp, struct vm_area_struct * vma) {
 
@@ -215,7 +239,6 @@ static void mmap_kmalloc_cleanup(void) {
     kfree(kmalloc_ptr);
 }
 
-
 static void mmap_vmem_cleanup(void) {
 
 	unsigned long virt_addr;
@@ -229,19 +252,8 @@ static void mmap_vmem_cleanup(void) {
 
 static int mmaper_open(struct inode *inode, struct file *filp){
 
-    /**
-     * Here we use kmalloc when the minor number is even;
-     * we use vmalloc if no. 
-     */
-
     unsigned int minor_num = MINOR(inode->i_rdev);
-
-    printk("mmaper_open: minor number is %d\n", minor_num);
-
-	if(minor_num % 2 == 0) 
-        mmap_kmalloc_init();
-    else
-        mmap_vmem_init();
+    // printk("mmaper_open: minor number is %d\n", minor_num);
 
     if(!filp->private_data){
         filp->private_data = (void*)kmalloc(sizeof(unsigned int), GFP_KERNEL);
@@ -249,24 +261,24 @@ static int mmaper_open(struct inode *inode, struct file *filp){
 
     // store the device minor number
     *(unsigned int*)(filp->private_data) = minor_num;
+    //update last_minor
+    last_minor = minor_num;
 
 	return 0;
 }
 
 static int mmaper_release(struct inode *inode, struct file *filp){
 
-	if(*((unsigned int*)(filp->private_data)) % 2 == 0){
-        mmap_kmalloc_cleanup();
-    } 
-    else{
-        mmap_vmem_cleanup();
-    }
-
     kfree(filp->private_data);
 	return 0;
 }
 
 static int mmappr_mmap(struct file *filp, struct vm_area_struct *vma) {
+
+    /**
+     * Here we use kmalloc when the minor number is even;
+     * we use vmalloc otherwise. 
+     */
 
     if(*((unsigned int*)(filp->private_data)) % 2 == 0){
         return mmap_kmalloc(filp,vma);
@@ -280,6 +292,10 @@ static struct file_operations mmaper_fops = {
 	release: mmaper_release,
 	mmap:     mmappr_mmap,
 	owner:	 THIS_MODULE
+};
+
+static struct proc_ops proc_fops = {
+    proc_read:   read_proc,
 };
 
 static int __init mmaper_init(void){
@@ -339,11 +355,24 @@ static int __init mmaper_init(void){
 
     device_create(mmaper_class,NULL,dev,NULL,"mmaper");
 
-	printk(KERN_INFO "mmaper: loading\n");
+    /* Create /proc entry */
+    proc_file_entry = proc_create("mmap", 0666, NULL, &proc_fops);
+    if(proc_file_entry == NULL){
+        printk(KERN_ERR "Error creating /proc/mmap.\n");
+		result = PTR_ERR(mmaper_class);
+		cdev_del(mmaper_cdev);
+		unregister_chrdev_region(dev, 1);
+        device_destroy(mmaper_class, dev);
+        return -ENOMEM;
+    }
 
+    /* Initializaing kernel buffers using both kmalloc() and vmalloc() */
+    mmap_kmalloc_init();
+    mmap_vmem_init();
+
+	printk(KERN_INFO "mmaper: loading\n");
 	return 0;
 }
-
 
 static void __exit mmaper_cleanup(void){
 
@@ -353,6 +382,10 @@ static void __exit mmaper_cleanup(void){
 	device_destroy(mmaper_class, dev);
 	class_destroy(mmaper_class);
 	unregister_chrdev_region(dev,1);
+    remove_proc_entry("mmap",NULL);
+
+    mmap_kmalloc_cleanup();
+    mmap_vmem_cleanup();
 }
 
 module_init(mmaper_init);
