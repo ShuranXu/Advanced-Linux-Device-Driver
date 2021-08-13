@@ -1,0 +1,1 @@
+cmd_/home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Basic-Tutorials/virtual_block_dev/v5/main.mod := { echo  /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Basic-Tutorials/virtual_block_dev/v5/main.o;  echo; } > /home/shuran/Advanced-Linux-Device-Driver/Ground-Work/Basic-Tutorials/virtual_block_dev/v5/main.mod
