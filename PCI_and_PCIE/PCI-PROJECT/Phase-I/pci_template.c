@@ -33,9 +33,26 @@
 #include <linux/pci.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
+#include <linux/ioport.h>
+#include <linux/dma-mapping.h>
+#include <linux/spinlock.h>
 
 
 #define DRV_NAME "LDDA_PCI"  /* Use it to change name of interface from eth */
+#define BAR0    0
+#define BAR1    1
+
+#define write_register(value, iomem, member) \
+        iowrite32(cpu_to_le32(value), \
+        (iomem) + offsetof(struct lr3k_regs, member))
+
+#define read_register(iomem, member) \
+        le32_to_cpu(ioread32((iomem) + \
+        offsetof(struct lr3k)regs, member))
+
+enum {
+        CH_RealTek_RTL_8139 = 0,
+};
 
 /**
   * PCI DEVICE REGISTRATION.  
@@ -46,8 +63,13 @@
   * Array is zero-terminated
   */
 
-static struct pci_device_id rtl8139_table[] __devinitdata = {
-        { /* CODE HERE */ },
+// static struct pci_device_id rtl8139_table[] __devinitdata = {
+//         { 0x10ec, 0x8139, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_RealTek_RTL_8139},
+//         { 0, }
+// };
+
+static struct pci_device_id rtl8139_table[] = {
+        { 0x10ec, 0x8139, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_RealTek_RTL_8139},
         { 0, }
 };
 
@@ -104,9 +126,14 @@ struct rtl8139
         /* Add rtl8139 device specific stuff later */
 };
 
-static int __devinit 
-rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id);
-static void __devexit rtl8139_remove( struct pci_dev *pdev );
+struct net_device *net_dev;     /* net device */
+struct rtl8139 *priv;
+
+// static int __devinit 
+// rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+// static void __devexit rtl8139_remove( struct pci_dev *pdev );
+static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+static void rtl8139_remove( struct pci_dev *pdev );
 static int rtl8139_open(struct net_device *dev);
 static int rtl8139_stop(struct net_device *dev);
 static int rtl8139_start_xmit(struct sk_buff *skb, struct net_device *dev);
@@ -122,7 +149,8 @@ static struct pci_driver rtl8139_driver = {
         .name           = DRV_NAME,
         .id_table       = rtl8139_table,
         .probe          = rtl8139_probe,
- 	.remove         = __devexit_p (rtl8139_remove),
+        .remove         = rtl8139_remove,
+ 	// .remove         = __devexit_p (rtl8139_remove),
 
 	/* We won't be implementing PCI suspend and resume routines  */
       //.suspent	= rtl8139_suspend,  
@@ -135,14 +163,21 @@ static struct pci_driver rtl8139_driver = {
   *  into net_device_ops 
   */
 
-#ifdef HAVE_NET_DEVICE_OPS
+// #ifdef HAVE_NET_DEVICE_OPS
+// static struct net_device_ops rtl8139_netdev_ops = {
+//         .ndo_open               = rtl8139_open,
+//         .ndo_stop               = rtl8139_stop,
+//         .ndo_get_stats          = rtl8139_get_stats,
+//         .ndo_start_xmit         = rtl8139_start_xmit
+// };
+// #endif
+
 static struct net_device_ops rtl8139_netdev_ops = {
         .ndo_open               = rtl8139_open,
         .ndo_stop               = rtl8139_stop,
         .ndo_get_stats          = rtl8139_get_stats,
         .ndo_start_xmit         = rtl8139_start_xmit
 };
-#endif
 
 /***************** PCI ROUTINES*********************/
 /**
@@ -151,7 +186,7 @@ static struct net_device_ops rtl8139_netdev_ops = {
   *    is mapped from the config space 
   * 3- Claim the device IO memory region. It takes start address and 
   *    length of IOMEM region
-  * 4- Remap the device IO Memory region. Routine takes start  and length 
+  * 4- Remap the device IO Memory region. Routine takes start and length 
   *    of IOMEM region
   * 5- Enable DMA processing engine
   * 6- Allocate net_device structure of type ether
@@ -160,17 +195,24 @@ static struct net_device_ops rtl8139_netdev_ops = {
   *    netdevice struct 
   */
 
-static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+// static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct net_device *dev;
-        struct rtl8139 *priv;
+        priv = kmalloc(sizeof(struct rtl8139), GFP_KERNEL);
 	int i;
+        int err;
 	unsigned long mmio_start, mmio_end, mmio_len, mmio_flags;
-        void *ioaddr;
+        void __iomem *ioaddr;
 	
 	/* Enable the device first. This wakes up the device if suspended. */
 	
         /* CODE HERE */
+        i = pci_enable_device(pdev);
+        if(i){
+                dev_err(&pdev->dev, "Failed to enable pci device\n");
+                goto freepriv;
+        }
+               
 
         /** 
 	  * Enable bus mastering of the device. This will set bus master bit 
@@ -179,6 +221,7 @@ static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device
 	  */
 
          /* CODE HERE */ 
+         pci_set_master(pdev);
 
 	/**
 	  * PCI has API to access PCI configuration space such as:
@@ -202,10 +245,12 @@ static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device
           * PCI BAR: PCI BASE ADDRESS REGISTER.
           * Where: BAR 0 is IOAR, BAR 1 is MEMAR. 
           * Since we will be using memory-mapped I/O (MMIO), we will pass 
-	  * the second  argument as 1 to pci routines mentioned above.  
+	  * the second argument as 1 to pci routines mentioned above.  
 	  */
 
-	  /* CODE HERE */
+	/* CODE HERE */
+        mmio_start = pci_resource_start(pdev, BAR1);
+        mmio_len = pci_resource_len(pdev, BAR1); 
 
         /**
 	  * Test if pci BAR 1 is really device MMIO region 
@@ -213,12 +258,21 @@ static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device
 	  */
 
 	/* CODE HERE */
+        if(!mmio_start || ((pci_resource_flags(pdev, BAR1) & IORESOURCE_IO) == 0)){
+                dev_err(&pdev->dev, "no I/O resource at PCI BAR #1\n");
+                goto disable;
+        }
         
         /* claim or take ownership of the IO Memory region. If fail goto 
  	 * disable the device
  	 * */
 
 	/* CODE HERE */
+        if(request_mem_region(mmio_start, mmio_len, DRV_NAME) == NULL){
+                dev_err(&pdev->dev, "I/O resource 0x%lx @ 0x%lx busy\n",
+                mmio_len, mmio_start);
+                goto disable;
+        }
 
         /** 
 	  * ioremap Device MMIO region: ioremap (address, size) function must 
@@ -236,6 +290,11 @@ static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device
           */
 
 	 /* CODE HERE */
+         ioaddr = ioremap(mmio_start, mmio_len);
+         if(ioaddr == NULL){
+                goto disable;
+         }
+        
 
 	/**
           * Check if 32-bit DMA capability is supported on this platform
@@ -244,7 +303,14 @@ static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device
 	  * goto unmap if unable to set DMA 32 bit mask
           */
 
-	/* CODE HERE/*
+	/* CODE HERE */
+        err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+        if(!err)
+                err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+        if(err){
+                printk(KERN_WARNING DRV_NAME ": No suitable DMA available.\n");
+                goto release;
+        }
 
 	/** 
 	  * Linux Network Stack works with network device not the PCI device. 
@@ -255,15 +321,23 @@ static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device
 	  */
 
 	 /* CODE HERE */
+         net_dev = alloc_etherdev(sizeof(struct net_device));
+         if(!net_dev){
+                printk(KERN_WARNING DRV_NAME ": Failed to allocate an ethernet network device.\n");
+                goto unmap;
+         }
+         
 
 	/** 
  	 * Set the device name to DRV_NAME instead of eth via memcpy 
  	 */ 
 
 	/* CODE HERE */
+        memcpy(net_dev->name, DRV_NAME, strlen(DRV_NAME));
+
 
  	/* sysfs stuff. Sets up device link in /sys/class/net/interface_name */
-	SET_NETDEV_DEV(dev, &pdev->dev);
+	SET_NETDEV_DEV(net_dev, &pdev->dev);
 
 	/**
 	  *  Set up information in the device private structure such as 
@@ -271,6 +345,12 @@ static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device
 	  */
 
 	/* CODE HERE */
+
+        spin_lock_init(&priv->lock);
+        priv->mmio_addr = ioaddr;
+        priv->regs_len = mmio_len;
+        priv->pci_dev = pdev;  
+        priv->stats = net_dev->stats;
 
 	/**
 	  * Fill in the net device with MMIO address and irq obtained 
@@ -285,6 +365,8 @@ static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device
           */
 
 	/* CODE HERE */
+        net_dev->irq = pdev->irq;
+        net_dev->base_addr = mmio_start;
 
 	/**
           * You can stuff net device structure into pci_driver structure
@@ -294,6 +376,7 @@ static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device
           */
 
 	/* CODE HERE */	
+        pci_set_drvdata(pdev, (void*)priv);
 
 	/**
           * Interface address: MAC and Broadcast Address
@@ -306,13 +389,20 @@ static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device
 	  */
 
 	/* CODE HERE */
+        memset(net_dev->broadcast, 0xff, 6);
+        net_dev->dev_addr = kmalloc(sizeof(unsigned char) * 6, GFP_KERNEL);
+        for(i=0;i<6;i++){
+                net_dev->dev_addr[i] = ioread8(ioaddr + i);
+                // net_dev->dev_addr[i] = ioreadb(ioaddr + i);
+        }
+
 
         /* Length of Ethernet frame. It is a "hardware header length", number 
  	 * of octets that lead the transmitted packet before IP header, or 
  	 * other protocol information.  Value is 14 for Ethernet interfaces.
          */
 
-        dev->hard_header_len = 14;
+        net_dev->hard_header_len = 14;
 
         /** 
 	 *  fill in the net device with our device methods that we will write 
@@ -322,20 +412,26 @@ static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device
 	 *  net_device_ops containing netdevice methods
 	 */
 
-#ifdef HAVE_NET_DEVICE_OPS
-	dev->netdev_ops = &rtl8139_netdev_ops;
-#else
-	dev->open = rtl8139_open;
-	dev->stop = rtl8139_stop;
-	dev->hard_start_xmit = rtl8139_start_xmit;
-	dev->get_stats = rtl8139_get_stats;
-#endif
+// #ifdef HAVE_NET_DEVICE_OPS
+// 	priv->net_dev->netdev_ops = &rtl8139_netdev_ops;
+// #else
+// 	priv->net_dev->netdev_ops->ndo_open = rtl8139_open;
+// 	priv->net_dev->netdev_ops->ndo_stop = rtl8139_stop;
+// 	priv->net_dev->netdev_ops->ndo_start_xmit = rtl8139_start_xmit;
+// 	priv->net_dev->netdev_ops->ndo_get_stats = rtl8139_get_stats;
+// #endif
+
+        net_dev->netdev_ops = &rtl8139_netdev_ops;
 
 	/* Finally register the net device. An unused ethernet interface 
          * is alloted
          */
 
         /* CODE HERE */
+        if(register_netdev(net_dev)){
+                dev_err(&pdev->dev, "Failed to register net device\n");
+                goto freedev;
+        }
 
         return 0;
 
@@ -344,8 +440,10 @@ static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device
 	 * error conditions
 	 */
 
+
 freedev:
-	free_netdev(dev);
+        kfree(net_dev->dev_addr);
+	free_netdev(net_dev);
 
 unmap:
 	pci_iounmap(pdev, ioaddr);
@@ -356,6 +454,10 @@ release:
 disable:
 	pci_disable_device(pdev);
 	return (-ENODEV);
+
+freepriv:
+        kfree(priv);
+        return -1;
 }
 
 
@@ -392,34 +494,62 @@ static struct net_device_stats * rtl8139_get_stats(struct net_device *dev)
 	 * of net_dev_stat that is in device private structure
 	 */
 	/* CODE HERE */
+        return &priv->stats;
+
+        // return NULL; //for now
 }
 
 /* PCI remove routine - required else can't rmmod */
-static void __devexit rtl8139_remove( struct pci_dev *pdev )
+// static void __devexit rtl8139_remove( struct pci_dev *pdev )
+static void rtl8139_remove( struct pci_dev *pdev )
 {
-   struct net_device *dev;
-   struct rtl8139 *priv;
-   /**
-     * Get address of netdevice, device private structures and ioaddr 
-     * Unregister and free netdevice
-     * Unmap the device MMIO region. Also set: priv->mmio_addr = NULL 
-     * Release the ownership of IO memory region
-     * call: pci_set_drvdata(pdev, NULL)
-     * Disable PCI device
-     */
+        // struct net_device *dev;
+        struct rtl8139 *priv;
+        /**
+         * Get address of netdevice, device private structures and ioaddr 
+         * Unregister and free netdevice
+         * Unmap the device MMIO region. Also set: priv->mmio_addr = NULL 
+         * Release the ownership of IO memory region
+         * call: pci_set_drvdata(pdev, NULL)
+         * Disable PCI device
+         */
 
-	/* CODE HERE */
+        /* CODE HERE */
+        priv = (struct rtl8139 *)pci_get_drvdata(pdev);
+
+        /* Unregister and free netdevice */
+        unregister_netdev(net_dev);
+        free_netdev(net_dev);
+        /* Unmap the device MMIO region */
+        pci_iounmap(pdev, priv->mmio_addr);
+        priv->mmio_addr = NULL;
+        /* Release the ownership of IO memory region */
+        pci_release_regions(pdev);	
+        /* clear priv_data */
+        pci_set_drvdata(pdev, NULL);
+        kfree(net_dev->dev_addr);
+        kfree(net_dev);
+        kfree(priv);
+        /* Disable PCI device */
+        pci_disable_device(pdev);
+
 }
 
 /**************** PCI init and exit routines ***********************/
 static int __init pci_rtl8139_init(void)
 {
 	/* CODE HERE */
+        if(pci_register_driver(&rtl8139_driver)){
+                printk(KERN_ERR DRV_NAME ": Failed to register the device.\n");
+                return -1;
+        }
+        return 0;
 }
 
 static void __exit pci_rtl8139_exit(void)
 {
 	/* CODE HERE */
+        pci_unregister_driver(&rtl8139_driver);
 }
 
 module_init(pci_rtl8139_init);
