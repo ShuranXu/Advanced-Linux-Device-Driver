@@ -213,6 +213,7 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
                 goto freepriv;
         }
                
+        printk(KERN_INFO "pci_template: %d\n",__LINE__);
 
         /** 
 	  * Enable bus mastering of the device. This will set bus master bit 
@@ -274,6 +275,8 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
                 goto disable;
         }
 
+        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+
         /** 
 	  * ioremap Device MMIO region: ioremap (address, size) function must 
 	  * be called to map the device memory into a virtual memory address. 
@@ -295,6 +298,7 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
                 goto disable;
          }
         
+        printk(KERN_INFO "pci_template: %d\n",__LINE__);
 
 	/**
           * Check if 32-bit DMA capability is supported on this platform
@@ -312,6 +316,8 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
                 goto release;
         }
 
+        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+
 	/** 
 	  * Linux Network Stack works with network device not the PCI device. 
 	  * We need to allocate an ethernet network device. alloc_etherdev() 
@@ -327,6 +333,7 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
                 goto unmap;
          }
          
+        printk(KERN_INFO "pci_template: %d\n",__LINE__);
 
 	/** 
  	 * Set the device name to DRV_NAME instead of eth via memcpy 
@@ -378,6 +385,8 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* CODE HERE */	
         pci_set_drvdata(pdev, (void*)priv);
 
+        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+
 	/**
           * Interface address: MAC and Broadcast Address
           * RealTek8139 datasheet states that the first 6 bytes of ioaddr 
@@ -396,6 +405,7 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
                 // net_dev->dev_addr[i] = ioreadb(ioaddr + i);
         }
 
+        printk(KERN_INFO "pci_template: %d\n",__LINE__);
 
         /* Length of Ethernet frame. It is a "hardware header length", number 
  	 * of octets that lead the transmitted packet before IP header, or 
@@ -433,6 +443,8 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
                 goto freedev;
         }
 
+        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+        
         return 0;
 
 	/**
