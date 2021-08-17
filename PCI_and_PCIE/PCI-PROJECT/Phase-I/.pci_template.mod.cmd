@@ -1,1 +1,0 @@
-cmd_/home/shuran/Advanced-Linux-Device-Driver/PCI_and_PCIE/PCI-PROJECT/Phase-I/pci_template.mod := { echo  /home/shuran/Advanced-Linux-Device-Driver/PCI_and_PCIE/PCI-PROJECT/Phase-I/pci_template.o;  echo; } > /home/shuran/Advanced-Linux-Device-Driver/PCI_and_PCIE/PCI-PROJECT/Phase-I/pci_template.mod
