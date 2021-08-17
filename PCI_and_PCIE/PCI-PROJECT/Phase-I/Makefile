@@ -24,5 +24,5 @@ clean:
 
 else
     # called from kernel build system: just declare what our modules are
-     obj-m := pci_template.o
+     obj-m := pci_template.o 8139regs.o
 endif

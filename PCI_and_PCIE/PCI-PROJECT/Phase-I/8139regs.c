@@ -14,6 +14,7 @@
 #include <linux/module.h>	// for init_module() 
 #include <linux/proc_fs.h>	// for create_proc_read_entry()
 #include <linux/pci.h>		// for pci_get_device() 
+#include <linux/version.h> //for kernel version comparison
 
 #define VENDOR_ID  0x10EC	// RealTek Semiconductor Corp
 #define	DEVICE_ID  0x8139 	// RTL-8139 Network Processor
@@ -78,6 +79,11 @@ int my_proc( char *buf, char **s, off_t off, int bufsz, int *eof, void *data )
 	return	len;
 }
 
+struct proc_dir_entry * procent;
+struct file_operations proc_fops = {
+	read:   my_proc
+};
+
 int init_module( void )
 {
 	struct pci_dev	*devp = NULL; 
@@ -95,7 +101,11 @@ int init_module( void )
 	io = ioremap( mmio_base, mmio_size );
 	if ( !io ) return -ENOSPC;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
 	create_proc_read_entry( modname, 0, NULL, my_proc, NULL );
+#else
+	procent = proc_create_data(modname,0,NULL,&proc_fops,NULL);
+#endif 
 	return	0;  // SUCCESS
 }
 
