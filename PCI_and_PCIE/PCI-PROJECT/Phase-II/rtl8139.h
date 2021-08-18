@@ -1,3 +1,10 @@
+#ifndef RTL8139_H_
+#define RTL8139_H_
+
+
+#include <linux/types.h>
+#include <linux/spinlock.h>
+
 /* Start of RealTek rtl8139 specs*/
 
 /* min and max supported ethernet frame size. Maximum  must be at least (dev->mtu+14+4).*/
@@ -31,7 +38,7 @@
 #define TCR           0x40    /* Initialize to support DMA burst size (1024), before tranmsit */
 #define RCR           0x44    /* Needs to initialize before recieve */
 #define MPC           0x4c    /* Needs to initialize this missed packet counter */
-#define MULINT        0x5c    /* Initialize to avoid any early recieve interrupts */    
+#define MULINT        0x5c    /* Initialize to avoid any early receive interrupts */    
 
 /* RealTek TSD register commands. work with TSD0-3 registers */
 
@@ -97,6 +104,7 @@
 #define WRITEW_F(val16 , regaddr)   do { iowrite16 ( (val16), (regaddr) ); ioread16 (regaddr); } while (0)
 #define WRITEL_F(val32 , regaddr)   do { iowrite32 ( (val32), (regaddr) ); ioread32 (regaddr); } while (0)
 
+#define RTL_W8(reg, val8)	iowrite8 ((val8), ioaddr + (reg))
 // Supported VendorID and DeviceID
 
 #define VENDOR_ID  0x10ec  // Realtek Semiconductor Company, LTD
@@ -130,22 +138,25 @@ struct rtl8139
 typedef struct rtl8139 rtl8139_t;
 
 /* PCI callback and ISR routines */
-static int __devinit 
-rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id);
-static void __devexit rtl8139_remove (struct pci_dev *pdev);
-static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance);
+// static int __devinit 
+// rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+// static void __devexit rtl8139_remove (struct pci_dev *pdev);
+// static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance);
 // static int rtl8139_suspend (struct pci_dev *pdev, pm_message_t state);
 // static int rtl8139_resume (struct pci_dev *pdev);
 
 // Net Device specific routines 
-static int rtl8139_open(struct net_device *netdev);
-static int rtl8139_stop(struct net_device *netdev);
-static int rtl8139_start_xmit(struct sk_buff *skb, struct net_device *netdev);
-static void rtl8139_hardware_start(struct net_device *netdev);
-static struct net_device_stats* rtl8139_get_stats(struct net_device *netdev);
+// static int rtl8139_open(struct net_device *netdev);
+// static int rtl8139_stop(struct net_device *netdev);
+// static int rtl8139_start_xmit(struct sk_buff *skb, struct net_device *netdev);
+// static void rtl8139_hardware_start(struct net_device *netdev);
+// static struct net_device_stats* rtl8139_get_stats(struct net_device *netdev);
 
 #define assert(expr) \
         if(unlikely(!(expr))) {                                     \
             printk(KERN_ERR "Assertion failed! %s,%s,%s,line=%d\n", \
             #expr, __FILE__, __func__, __LINE__);                   \
         }
+
+#endif 
+

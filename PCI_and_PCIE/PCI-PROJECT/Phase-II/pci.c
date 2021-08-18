@@ -36,18 +36,15 @@
 #include <asm/iomap.h>
 #include <linux/ioport.h>
 #include <linux/dma-mapping.h>
-#include <linux/spinlock.h>
+#include "rtl8139.h"
 
 
-#define DRV_NAME                        "LDDA_PCI"  /* Use it to change name of interface from eth */
+#define NETDEV_NAME 					"rtl8319"
 #define BAR0                            0
 #define BAR1                            1
-#define PCI_VENDOR_ID_REALTEK           0x10ec	// RealTek Semiconductor Corp
-#define	PCI_DEVICE_ID_REALTEK_8139      0x8139 	// RTL-8139 Network Processor
-#define CP_REGS_SIZE		        (0xff + 1)
+#define CP_REGS_SIZE		        	(0xff + 1)
 #define privr32(reg)	                ioread32(priv->mmio_addr + (reg))
-#define privw32(reg,val)	        iowrite32((val), priv->mmio_addr + (reg))
-
+#define privw32(reg,val)	        	iowrite32((val), priv->mmio_addr + (reg))
 
 
 /**
@@ -60,7 +57,7 @@
   */
 
 static struct pci_device_id rtl8139_table[] = {
-        { PCI_DEVICE(PCI_VENDOR_ID_REALTEK,   PCI_DEVICE_ID_REALTEK_8139), },
+        { PCI_DEVICE(VENDOR_ID,   DEVICE_ID), },
         { 0, }
 };
 
@@ -257,22 +254,6 @@ enum {
 	cp_intr_mask = cp_rx_intr_mask | cp_norx_intr_mask,
 };
 
-/**
-  * rtl8139 private structure for keeping device specific 
-  * information. You need to puplate it for later reference.
-  */
-
-struct rtl8139
-{
-	struct pci_dev *pci_dev;  	/* PCI device */
-        void *mmio_addr; 		/* memory mapped I/O addr */
-        unsigned long regs_len; 	/* length of IOMEM region */
-        struct net_device_stats stats;  /* Net device stats */
-	spinlock_t lock;  		/* Spin lock */
-	
-        /* Add rtl8139 device specific stuff later */
-};
-
 // static int __devinit 
 // rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 // static void __devexit rtl8139_remove( struct pci_dev *pdev );
@@ -282,6 +263,10 @@ static int rtl8139_open(struct net_device *dev);
 static int rtl8139_stop(struct net_device *dev);
 static int rtl8139_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static struct net_device_stats* rtl8139_get_stats(struct net_device *dev);
+static void rtl8139_hardware_start(struct net_device *netdev);
+static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance);
+
+
 
 /** 
   * PCI driver hooks and supported devices table 
@@ -343,7 +328,7 @@ static struct net_device_ops rtl8139_netdev_ops = {
 static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
     struct net_device *dev;
-    struct rtl8139 *priv;
+    rtl8139_t *priv;
 	int i;
     int err;
 	unsigned long mmio_start, mmio_end, mmio_len, mmio_flags;
@@ -491,7 +476,7 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 /* CODE HERE */
 	dev = alloc_etherdev(sizeof(struct rtl8139));
 	if(!dev){
-		printk(KERN_WARNING DRV_NAME ": Failed to allocate an ethernet network device.\n");
+		dev_err(&pdev->dev, "Failed to allocate an ethernet network device.\n");
 		goto unmap;
 	}
 		
@@ -502,7 +487,7 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
  	 */ 
 
 	/* CODE HERE */
-    memcpy(dev->name, DRV_NAME, strlen(DRV_NAME));
+    memcpy(dev->name, NETDEV_NAME, strlen(NETDEV_NAME));
 
 
  	/* sysfs stuff. Sets up device link in /sys/class/net/interface_name */
@@ -623,7 +608,7 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 
 freedev:
-        free_netdev(dev);
+    free_netdev(dev);
 
 unmap:
 	pci_iounmap(pdev, ioaddr);
@@ -632,16 +617,239 @@ release:
 	pci_release_regions(pdev);
 
 mwi:
-        pci_clear_mwi(pdev);
+    pci_clear_mwi(pdev);
 
 disable:
 	pci_disable_device(pdev);
 	return (-ENODEV);
-
 }
 
 
 /**************** Net device routines ******************************/
+
+static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance)
+{
+    struct net_device *netdev = (struct net_device*)dev_instance;
+    rtl8139_t *priv = netdev_priv(dev);
+    void *__iomem ioaddr = priv->mmio_addr;
+    unsigned short isr;
+    unsigned int txstatus;
+	int handled = 0;
+
+	printk("Entering %s\n", __FUNCTION__);
+
+    /**
+	  	* Read ISR register value in isr variable
+    	* Clear all interrupts. Reading the ISR register should do it.
+        * In some case it does n't work. To be sure, write 0xfff on
+        * the ISR register to clear the interrupts
+        */
+
+	/* CODE HERE */
+
+	/* unknown Interrupt Type */
+	if (unlikely((isr & INT_MASK) == 0))
+		goto out;
+
+	handled = 1;
+		
+	// Hardware no longer present (hotplug?) or major error, bail out
+	if (unlikely(isr == 0xFFFF))
+			goto out;	
+
+	printk("%s: interrupt status=%4.4x.\n", netdev->name, isr);
+
+	/* Check type of interrupt received. TxOK and TxErr */
+	if((isr & TxOK) || (isr & TxErr))
+	{
+		/**
+	 *  Continue processing if there are transmit buffers and 
+	 *  queue is not flow controlled 
+	 */
+		while((priv->dirty_tx != priv->cur_tx) || netif_queue_stopped(netdev))
+		{
+			/**
+			 * TSD0-3 contains the status of transmit packet
+			 * TSAD0-3 contains physical address of the packet in memory
+			 */
+
+			txstatus = readl(ioaddr + TSD0 + priv->dirty_tx * sizeof(int));
+
+			// Update the stats counter for TX collisions */
+			priv->stats.collisions += (txstatus >> 24)&0xF;
+	
+			//check whether transmission has been concluded
+			if(!(txstatus & (TxStatOK | TxAborted | TxUnderrun)))
+				break; /*That means the packet is still sitting there */
+
+			if(txstatus & TxStatOK) { /* Successfully transmitted */
+			printk("Packet is transmitted, TxStatOK bit is set\n");
+
+			/**
+			* Bits 0-12 of TSD0-3 contains total bytes in the this 
+			* descriptor. We are setting 0x1fff mask that tests 0-12 
+			* bits of 32 bit value. Update the stats tx_bytes and 
+			* tx_packets 
+			*/
+			
+			/* CODE HERE */
+			}
+
+			else {
+					printk ("%s: Transmit error\n");
+					/* Update tx_errors stat */
+
+					/* CODE HERE */
+
+					/* update detailed TX error-counters */
+					if ( txstatus & TxAborted )
+						priv->stats.tx_aborted_errors++;
+					if ( txstatus & TxUnderrun )
+						priv->stats.tx_fifo_errors++;
+					if ( txstatus * TxOutOfWindow )
+						priv->stats.tx_window_errors++;
+					if ( txstatus * TxCarrierLost )
+						priv->stats.tx_carrier_errors++;
+				}
+                 
+			// Point dirty_tx to next transmit descriptor 
+		    priv->dirty_tx = (priv->dirty_tx + 1) % NUM_TX_DESC;
+
+			if((priv->dirty_tx == priv->cur_tx) 
+			& netif_queue_stopped(netdev))
+			{
+					printk("wake up queue\n");
+					netif_wake_queue(netdev);
+			}
+        }
+    }
+
+    /**
+      * Data is moved from device to recive buffer. After the whole 
+	  * packet is transferred to recieve Buffer, the recieve packet 
+	  * header (recieve status and packet length) is written in front 
+	  * of the packet.
+    */
+
+    if(isr & RxErr) {
+        printk("\nReceive error \n");
+	  /* Update rx_errors stats */
+	 
+	  /* CODE HERE */
+    }
+
+    if(isr & RxOK) {
+        printk("Interrupt of type receive\n");
+
+	 /* Test CR register against RxBufEmty to see if driver buffer is empty */
+
+		while((readb(ioaddr + CR) & RxBufEmpty) == 0)
+		{
+			unsigned int rx_status;
+			unsigned short rx_size;
+			unsigned short pkt_size;
+			struct sk_buff *skb;
+
+			//perform address-wrap if at end-of-buffer
+			if(priv->cur_rx > RX_BUF_LEN)
+				priv->cur_rx = priv->cur_rx % RX_BUF_LEN;
+
+			/**
+			 * Recieve status and packet length is stored in the 
+			 * beginning of the packet. It should be converted to 
+			 * host (little/big) endian
+			 */
+
+			rx_status = *(u32 *)(priv->rx_ring + priv->cur_rx);
+				rx_size = rx_status >> 16;
+
+			/* first two bytes are receive status register
+			* and next two bytes are frame length
+			* Packet follows these initial four bytes
+			*/
+
+			pkt_size = rx_size - 4;
+
+			/* allocate skb buffer to copy the packet */
+
+			/* CODE HERE */
+			if (skb) {
+					skb->dev = netdev;
+
+			/** 
+			 * Reserve the necessary bytes at the head of the 
+			 * buffer to land the IP header on a long word 
+			 * boundary. The existing ethernet drivers thus
+			 * reserve 2 bytes extra to land IP headers on a 16 
+			 * byte boundary, which is  also the start of a cache 
+			 * line and help improve performance on some platform
+			*/
+
+			/* CODE HERE */
+
+			/**
+			* copy recieve buffer into skb via memcpy 
+			* Packet is located after 4 bytes of status
+			* register and frame length:
+			* priv->rx_ring + priv->cur_rx + 4
+			* Size of the packet is pkt_size = rx_size -4
+			*/
+				
+			/* CODE HERE */
+
+					skb_put (skb, pkt_size);
+					skb->protocol = eth_type_trans (skb, netdev);
+
+					/* hand skb to the protocol layer */
+
+					/* CODE HERE */
+
+					/* Update stats: rx_bytes and rx_packets; */
+
+					/* CODE HERE */
+						}
+
+			else {
+					printk (KERN_WARNING "%s: dropping packet.\n", netdev->name);
+					/* CODE HERE */
+
+					/* Update detailed RX error-counters */
+							if ( rx_status & (1 << 15) )
+									priv->stats.multicast++;
+							if ( rx_status & ((1 << 4)|(1 << 3)) )
+									priv->stats.rx_length_errors++;
+							if ( rx_status & (1 << 2) )
+									priv->stats.rx_crc_errors++;
+							if ( rx_status & (1 << 1) )
+									priv->stats.rx_frame_errors++;
+				}
+
+			/* update priv->cur_rx to next writing location  */
+
+			priv->cur_rx = (priv->cur_rx + rx_size + 4 + 3) & ~3;
+
+			/* update CAPR. CAPR register keeps track of data driver has read */
+			WRITEW_F((u16)(priv->cur_rx-16), ioaddr + CAPR);
+		}
+    }
+
+	if(isr & CableLen)
+			printk("cable length change interrupt\n");
+	if(isr & TimeOut)
+			printk("time interrupt\n");
+	if(isr & SysErr)
+			printk("system err interrupt\n");
+
+	printk("Exiting %s\n", __FUNCTION__);
+
+out:
+	/* What is the last thing that Interrupt handler does when returning */
+	
+	printk ("ISR:%s: exiting interrupt, intr_status=%#4.4x.\n",
+                 netdev->name, readw(ioaddr + ISR));
+	
+          /* CODE HERE */
+}
 
 // static int rtl8139_open(struct net_device *dev) 
 // { 
@@ -659,6 +867,8 @@ static int rtl8139_open(struct net_device *netdev)
 
 	/* CODE HERE */
 	struct rtl8139 *priv; 
+	int rc;
+	const int IRQ = priv->pci_dev->irq;
     priv = netdev_priv(netdev);
 
 	/**
@@ -679,12 +889,15 @@ static int rtl8139_open(struct net_device *netdev)
 	*/
 
 	/* CODE HERE */
+	rc = request_irq(IRQ, rtl8139_interrupt, IRQF_SHARED, netdev->name, netdev);
+	if (rc)
+		return -1;
 
     /**
     	* Allocate consistent DMA buffers for trasmit 
 		* and recieve. pci_alloc_consistent guarantees data 
 		* coherency when DMA is performed. Coherent mapping allows 
-        * simultaneously access  to buffer by both cpu and device. 
+        * simultaneously access to buffer by both cpu and device. 
 		* Can be expensive to setup and use. Usually allocated for the whole 
 		* time module is loaded. Function generates a bus address 
 		* pointed by tx_bufs_dma and rx_ring_dma in rtl8139_private 
@@ -697,7 +910,18 @@ static int rtl8139_open(struct net_device *netdev)
         * and return -ENOMEM
     */
 	
-	  /* CODE HERE */
+	/* CODE HERE */
+	priv->tx_bufs = pci_alloc_consistent(priv->pci_dev,TOTAL_TX_BUF_SIZE, &priv->tx_bufs_dma);
+	if(!priv->tx_bufs){
+		dev_err(&priv->pci_dev->dev, "no Memory resource allocated for tx buffer\n");
+		goto irq;
+	}
+
+	priv->rx_ring = pci_alloc_consistent(priv->pci_dev, TOTAL_RX_BUF_SIZE, &priv->rx_ring_dma);
+	if(!priv->rx_ring){
+		dev_err(&priv->pci_dev->dev, "no Memory resource allocated for rx buffer\n");
+		goto dma_tx;
+	}
 
     /**
 	  	* Initialize the recieve (cur_rx) and trasmit (dirty_tx) descriptors
@@ -707,25 +931,37 @@ static int rtl8139_open(struct net_device *netdev)
 
 	priv->cur_rx = 0;
     priv->dirty_tx = 0;
+	priv->cur_tx = 0;
 
 	/* There are total of four transmit buffers that will be 
 	 * using a single DMA buffer tx_bufs allocated above. 
 	 */ 
 
 	for (i = 0; i < NUM_TX_DESC; i++)
-               priv->tx_buf[i] = &priv->tx_bufs[i * TX_BUF_SIZE];
+            priv->tx_buf[i] = &priv->tx_bufs[i * TX_BUF_SIZE];
 
 	/* Initialize the hardware to make sure it is ready*/
 
-        rtl8139_hardware_start(netdev);
+    rtl8139_hardware_start(netdev);
 
 	/* Notify the protocol layer so that it can start sending packet */
 
 	/* CODE HERE */
+	netif_start_queue(netdev);
 
 	printk("Exiting %s\n", __FUNCTION__);
 
     return 0;
+
+
+dma_tx:
+	pci_free_consistent(priv->pci_dev, TOTAL_TX_BUF_SIZE, priv->tx_bufs, priv->tx_bufs_dma);
+	return -ENOMEM;
+
+irq:
+	free_irq(IRQ,(void *)(rtl8139_interrupt));
+
+	return -1;
 }
 
 static int rtl8139_stop(struct net_device *dev) 
@@ -735,10 +971,84 @@ static int rtl8139_stop(struct net_device *dev)
     return 0;
 }
 
-static int rtl8139_start_xmit(struct sk_buff *skb, struct net_device *dev) 
+// static int rtl8139_start_xmit(struct sk_buff *skb, struct net_device *dev) 
+// {
+//     printk("rtl8139_start_xmit: Add code later\n");
+// 	dev_kfree_skb(skb); /* Just free it for now */
+//     return 0;
+// }
+
+static int rtl8139_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
-    printk("rtl8139_start_xmit: Add code later\n");
-	dev_kfree_skb(skb); /* Just free it for now */
+	/* Get address of private struct and ioaddr */
+	
+	/* CODE HERE */
+	struct rtl8139 *priv; 
+	int rc;
+	const int IRQ = priv->pci_dev->irq;
+    priv = netdev_priv(netdev);
+    unsigned int entry; /* entry points to transmit descriptor used */
+	unsigned int len = skb->len;
+
+    printk("Entering %s\n", __FUNCTION__);
+
+	/* Use the next available transmit descriptor. */
+	entry = (priv->cur_tx) % NUM_TX_DESC;
+
+    if (skb->len < TX_BUF_SIZE) {
+		/* 
+		* Copy skb->data to DMA buffer of the current transmit descriptor
+		*  and then free the skb  
+		*/
+
+		/* CODE HERE */
+		if(len < ETH_MIN_LEN)
+				memset(priv->tx_buf[entry], 0, ETH_MIN_LEN); /* do the padding */
+		skb_copy_and_csum_dev(skb, priv->tx_buf[entry]);
+		dev_kfree_skb(skb);
+
+	} else {
+		// Discard oversized packet by freeing it and updating tx_dropped
+
+		/* CODE HERE */
+		printk("%s: Warning, skb-> (%d) > %d!\n", __FUNCTION__, 
+				skb->len, TX_BUF_SIZE);
+		dev_kfree_skb(skb);
+		netdev->stats.tx_dropped++;
+		return 0;
+	}
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	/*
+	 * Writing to TxStatus triggers a DMA transfer of the data
+	 * copied to tp->tx_buf[entry] above. Use a memory barrier
+	 * to make sure that the device sees the updated data.
+	 */
+
+	wmb();
+	
+	/* Fill the size of the packet in the status register TSD0-3 */
+	WRITEL_F(max(len, (unsigned int)ETH_MIN_LEN),
+                       ioaddr + TSD0 + (entry * sizeof (u32)));
+
+    // Adjust the cur_tx pointer to next tranmit descriptor  
+
+	/* CODE HERE */
+	priv->cur_tx += 1;
+
+	printk("%s cur_tx = %lu\n",__func__,(long unsigned int) priv->cur_tx);
+
+	if(priv->cur_tx == priv->dirty_tx) {
+		printk("%s: cur_tx == dirty_tx\n", __FUNCTION__);
+			netif_stop_queue(netdev);
+	}
+	
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	printk("%s: Queued Tx packet at %p size %u to slot %d.\n",
+           netdev->name, skb->data, skb->len, (entry));
+
     return 0;
 }
 
@@ -771,6 +1081,79 @@ static struct net_device_stats * rtl8139_get_stats(struct net_device *dev)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return &dev->stats;
+}
+
+static void rtl8139_hardware_start(struct net_device *netdev)
+{
+	/* Get address of device private structure and ioaddr */
+
+	/* CODE HERE */
+	struct rtl8139 *priv; 
+	void __iomem *ioaddr;
+	int i;
+
+	priv = netdev_priv(netdev);
+	ioaddr = priv->mmio_addr;
+
+
+	printk("Entering %s\n", __FUNCTION__);
+
+    /********* Start of hardware specific code ****************/
+
+    /* Reset the chip. Make sure to wait for chip to reset */
+
+	/* CODE HERE */
+	WRITEB_F(CmdReset, ioaddr + CR);
+	/* wait for chip to finish the reset */
+	udelay(100);
+
+	for(i = 1000; i > 0; i--) {
+		if((readb(ioaddr + CR) & CmdReset) == 0) /* chip reset successfully */
+			break; 
+	}
+
+	/* Enable Tx/Rx with flush*/
+	WRITEB_F(( readb(ioaddr + CR) & ChipCmdClear ) | CmdTxEnb | CmdRxEnb, ioaddr + CR);
+	 
+	/**
+	* Tx config. Update Transmit Configuration Register TCR
+	* Maximum PCI burst is '6' and that is equal to 1024
+	*/
+
+	WRITEL_F( 6 << TCR_DMA_BURST_SHIFT , ioaddr + TCR ); 
+
+    /* Rx config. update recieve configuration register RCR */
+	WRITEL_F(((1 << RCR_RBLEN_SHIFT) | (7 << RCR_MXDMA_SHIFT) | 
+	 	(1 << RCR_WRAP_SHIFT) | (1 << RCR_AB_SHIFT) | 
+		(1 << RCR_AM_SHIFT) | (1 << RCR_AAP_SHIFT)), ioaddr + RCR);
+
+	printk("RCR=0x%x!\n", readl(ioaddr + RCR));
+
+    /* init Tx buffer DMA addresses. Write tx_bufs_dma (bus address) in TSAD0-3 */
+    for (i = 0; i < NUM_TX_DESC; i++) {
+	  WRITEL_F( priv->tx_bufs_dma + (priv->tx_buf[i] - priv->tx_bufs), 
+		&(((u32*)(ioaddr + TSAD0))[i]) );
+	 }
+       
+    /* Do the same for recieve DMA address by writing into RBSTART - Recieve buffer start address */ 
+
+	/* CODE HERE */	
+	WRITEL_F(priv->rx_ring_dma, &((u32*)(ioaddr + RBSTART)));
+
+    /* initialize missed packet counter */
+
+	/* CODE HERE */
+	WRITEL_F(0, ioaddr + MPC);
+
+    /* no early-rx interrupts */
+    writew((readw(ioaddr + MULINT) & 0xF000), ioaddr + MULINT);
+
+    /* Enable all known interrupts by setting the interrupt mask and flush it.*/
+
+	/* CODE HERE */
+	WRITEW_F(INT_MASK, ioaddr + IMR);
+
+    /******* End of Hardware Specific code ************/
 }
 
 /* PCI remove routine - required else can't rmmod */
