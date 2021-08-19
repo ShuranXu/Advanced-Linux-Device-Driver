@@ -40,13 +40,13 @@
 
 
 #define DRV_NAME                        "LDDA_PCI"  /* Use it to change name of interface from eth */
+#define NETDEV_NAME 					"rtl8319"
 #define BAR0                            0
 #define BAR1                            1
 #define PCI_VENDOR_ID_REALTEK           0x10ec	// RealTek Semiconductor Corp
 #define	PCI_DEVICE_ID_REALTEK_8139      0x8139 	// RTL-8139 Network Processor
-#define CP_REGS_SIZE		        (0xff + 1)
-#define privr32(reg)	                ioread32(priv->mmio_addr + (reg))
-#define privw32(reg,val)	        iowrite32((val), priv->mmio_addr + (reg))
+#define CP_REGS_SIZE		        	(0xff + 1)
+
 
 
 
@@ -99,163 +99,6 @@ static struct pci_device_id rtl8139_table[] = {
   */
 
 MODULE_DEVICE_TABLE(pci, rtl8139_table);
-
-
-enum {
-	/* NIC register offsets */
-	MAC0		= 0x00,	/* Ethernet hardware address. */
-	MAR0		= 0x08,	/* Multicast filter. */
-	StatsAddr	= 0x10,	/* 64-bit start addr of 64-byte DMA stats blk */
-	TxRingAddr	= 0x20, /* 64-bit start addr of Tx ring */
-	HiTxRingAddr	= 0x28, /* 64-bit start addr of high priority Tx ring */
-	Cmd		= 0x37, /* Command register */
-	IntrMask	= 0x3C, /* Interrupt mask */
-	IntrStatus	= 0x3E, /* Interrupt status */
-	TxConfig	= 0x40, /* Tx configuration */
-	ChipVersion	= 0x43, /* 8-bit chip version, inside TxConfig */
-	RxConfig	= 0x44, /* Rx configuration */
-	RxMissed	= 0x4C,	/* 24 bits valid, write clears */
-	Cfg9346		= 0x50, /* EEPROM select/control; Cfg reg [un]lock */
-	Config1		= 0x52, /* Config1 */
-	Config3		= 0x59, /* Config3 */
-	Config4		= 0x5A, /* Config4 */
-	MultiIntr	= 0x5C, /* Multiple interrupt select */
-	BasicModeCtrl	= 0x62,	/* MII BMCR */
-	BasicModeStatus	= 0x64, /* MII BMSR */
-	NWayAdvert	= 0x66, /* MII ADVERTISE */
-	NWayLPAR	= 0x68, /* MII LPA */
-	NWayExpansion	= 0x6A, /* MII Expansion */
-	TxDmaOkLowDesc  = 0x82, /* Low 16 bit address of a Tx descriptor. */
-	Config5		= 0xD8,	/* Config5 */
-	TxPoll		= 0xD9,	/* Tell chip to check Tx descriptors for work */
-	RxMaxSize	= 0xDA, /* Max size of an Rx packet (8169 only) */
-	CpCmd		= 0xE0, /* C+ Command register (C+ mode only) */
-	IntrMitigate	= 0xE2,	/* rx/tx interrupt mitigation control */
-	RxRingAddr	= 0xE4, /* 64-bit start addr of Rx ring */
-	TxThresh	= 0xEC, /* Early Tx threshold */
-	OldRxBufAddr	= 0x30, /* DMA address of Rx ring buffer (C mode) */
-	OldTSD0		= 0x10, /* DMA address of first Tx desc (C mode) */
-
-	/* Tx and Rx status descriptors */
-	DescOwn		= (1 << 31), /* Descriptor is owned by NIC */
-	RingEnd		= (1 << 30), /* End of descriptor ring */
-	FirstFrag	= (1 << 29), /* First segment of a packet */
-	LastFrag	= (1 << 28), /* Final segment of a packet */
-	LargeSend	= (1 << 27), /* TCP Large Send Offload (TSO) */
-	MSSShift	= 16,	     /* MSS value position */
-	MSSMask		= 0x7ff,     /* MSS value: 11 bits */
-	TxError		= (1 << 23), /* Tx error summary */
-	RxError		= (1 << 20), /* Rx error summary */
-	IPCS		= (1 << 18), /* Calculate IP checksum */
-	UDPCS		= (1 << 17), /* Calculate UDP/IP checksum */
-	TCPCS		= (1 << 16), /* Calculate TCP/IP checksum */
-	TxVlanTag	= (1 << 17), /* Add VLAN tag */
-	RxVlanTagged	= (1 << 16), /* Rx VLAN tag available */
-	IPFail		= (1 << 15), /* IP checksum failed */
-	UDPFail		= (1 << 14), /* UDP/IP checksum failed */
-	TCPFail		= (1 << 13), /* TCP/IP checksum failed */
-	NormalTxPoll	= (1 << 6),  /* One or more normal Tx packets to send */
-	PID1		= (1 << 17), /* 2 protocol id bits:  0==non-IP, */
-	PID0		= (1 << 16), /* 1==UDP/IP, 2==TCP/IP, 3==IP */
-	RxProtoTCP	= 1,
-	RxProtoUDP	= 2,
-	RxProtoIP	= 3,
-	TxFIFOUnder	= (1 << 25), /* Tx FIFO underrun */
-	TxOWC		= (1 << 22), /* Tx Out-of-window collision */
-	TxLinkFail	= (1 << 21), /* Link failed during Tx of packet */
-	TxMaxCol	= (1 << 20), /* Tx aborted due to excessive collisions */
-	TxColCntShift	= 16,	     /* Shift, to get 4-bit Tx collision cnt */
-	TxColCntMask	= 0x01 | 0x02 | 0x04 | 0x08, /* 4-bit collision count */
-	RxErrFrame	= (1 << 27), /* Rx frame alignment error */
-	RxMcast		= (1 << 26), /* Rx multicast packet rcv'd */
-	RxErrCRC	= (1 << 18), /* Rx CRC error */
-	RxErrRunt	= (1 << 19), /* Rx error, packet < 64 bytes */
-	RxErrLong	= (1 << 21), /* Rx error, packet > 4096 bytes */
-	RxErrFIFO	= (1 << 22), /* Rx error, FIFO overflowed, pkt bad */
-
-	/* StatsAddr register */
-	DumpStats	= (1 << 3),  /* Begin stats dump */
-
-	/* RxConfig register */
-	RxCfgFIFOShift	= 13,	     /* Shift, to get Rx FIFO thresh value */
-	RxCfgDMAShift	= 8,	     /* Shift, to get Rx Max DMA value */
-	AcceptErr	= 0x20,	     /* Accept packets with CRC errors */
-	AcceptRunt	= 0x10,	     /* Accept runt (<64 bytes) packets */
-	AcceptBroadcast	= 0x08,	     /* Accept broadcast packets */
-	AcceptMulticast	= 0x04,	     /* Accept multicast packets */
-	AcceptMyPhys	= 0x02,	     /* Accept pkts with our MAC as dest */
-	AcceptAllPhys	= 0x01,	     /* Accept all pkts w/ physical dest */
-
-	/* IntrMask / IntrStatus registers */
-	PciErr		= (1 << 15), /* System error on the PCI bus */
-	TimerIntr	= (1 << 14), /* Asserted when TCTR reaches TimerInt value */
-	LenChg		= (1 << 13), /* Cable length change */
-	SWInt		= (1 << 8),  /* Software-requested interrupt */
-	TxEmpty		= (1 << 7),  /* No Tx descriptors available */
-	RxFIFOOvr	= (1 << 6),  /* Rx FIFO Overflow */
-	LinkChg		= (1 << 5),  /* Packet underrun, or link change */
-	RxEmpty		= (1 << 4),  /* No Rx descriptors available */
-	TxErr		= (1 << 3),  /* Tx error */
-	TxOK		= (1 << 2),  /* Tx packet sent */
-	RxErr		= (1 << 1),  /* Rx error */
-	RxOK		= (1 << 0),  /* Rx packet received */
-	IntrResvd	= (1 << 10), /* reserved, according to RealTek engineers,
-					but hardware likes to raise it */
-
-	IntrAll		= PciErr | TimerIntr | LenChg | SWInt | TxEmpty |
-			  RxFIFOOvr | LinkChg | RxEmpty | TxErr | TxOK |
-			  RxErr | RxOK | IntrResvd,
-
-	/* C mode command register */
-	CmdReset	= (1 << 4),  /* Enable to reset; self-clearing */
-	RxOn		= (1 << 3),  /* Rx mode enable */
-	TxOn		= (1 << 2),  /* Tx mode enable */
-
-	/* C+ mode command register */
-	RxVlanOn	= (1 << 6),  /* Rx VLAN de-tagging enable */
-	RxChkSum	= (1 << 5),  /* Rx checksum offload enable */
-	PCIDAC		= (1 << 4),  /* PCI Dual Address Cycle (64-bit PCI) */
-	PCIMulRW	= (1 << 3),  /* Enable PCI read/write multiple */
-	CpRxOn		= (1 << 1),  /* Rx mode enable */
-	CpTxOn		= (1 << 0),  /* Tx mode enable */
-
-	/* Cfg9436 EEPROM control register */
-	Cfg9346_Lock	= 0x00,	     /* Lock ConfigX/MII register access */
-	Cfg9346_Unlock	= 0xC0,	     /* Unlock ConfigX/MII register access */
-
-	/* TxConfig register */
-	IFG		= (1 << 25) | (1 << 24), /* standard IEEE interframe gap */
-	TxDMAShift	= 8,	     /* DMA burst value (0-7) is shift this many bits */
-
-	/* Early Tx Threshold register */
-	TxThreshMask	= 0x3f,	     /* Mask bits 5-0 */
-	TxThreshMax	= 2048,	     /* Max early Tx threshold */
-
-	/* Config1 register */
-	DriverLoaded	= (1 << 5),  /* Software marker, driver is loaded */
-	LWACT           = (1 << 4),  /* LWAKE active mode */
-	PMEnable	= (1 << 0),  /* Enable various PM features of chip */
-
-	/* Config3 register */
-	PARMEnable	= (1 << 6),  /* Enable auto-loading of PHY parms */
-	MagicPacket     = (1 << 5),  /* Wake up when receives a Magic Packet */
-	LinkUp          = (1 << 4),  /* Wake up when the cable connection is re-established */
-
-	/* Config4 register */
-	LWPTN           = (1 << 1),  /* LWAKE Pattern */
-	LWPME           = (1 << 4),  /* LANWAKE vs PMEB */
-
-	/* Config5 register */
-	BWF             = (1 << 6),  /* Accept Broadcast wakeup frame */
-	MWF             = (1 << 5),  /* Accept Multicast wakeup frame */
-	UWF             = (1 << 4),  /* Accept Unicast wakeup frame */
-	LANWake         = (1 << 1),  /* Enable LANWake signal */
-	PMEStatus	= (1 << 0),  /* PME status can be reset by PCI RST# */
-
-	cp_norx_intr_mask = PciErr | LinkChg | TxOK | TxErr | TxEmpty,
-	cp_rx_intr_mask = RxOK | RxErr | RxEmpty | RxFIFOOvr,
-	cp_intr_mask = cp_rx_intr_mask | cp_norx_intr_mask,
-};
 
 /**
   * rtl8139 private structure for keeping device specific 
@@ -339,45 +182,44 @@ static struct net_device_ops rtl8139_netdev_ops = {
   *    netdevice struct 
   */
 
-// static int __devinit rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-        struct net_device *dev;
-        struct rtl8139 *priv;
+    struct net_device *dev;
+    struct rtl8139 *priv;
 	int i;
-        int err;
+    int err;
 	unsigned long mmio_start, mmio_end, mmio_len, mmio_flags;
-        void __iomem *ioaddr;
+    void __iomem *ioaddr;
 
-        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+    printk(KERN_INFO "pci_template: %d\n",__LINE__);
 	
 	/* Enable the device first. This wakes up the device if suspended. */
 	
-        /* CODE HERE */
-        i = pci_enable_device(pdev);
-        if(i){
-                dev_err(&pdev->dev, "Failed to enable pci device\n");
-                return -1;
-        }
-               
-        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+	/* CODE HERE */
+	i = pci_enable_device(pdev);
+	if(i){
+			dev_err(&pdev->dev, "Failed to enable pci device\n");
+			return -1;
+	}
+			
+	printk(KERN_INFO "pci_template: %d\n",__LINE__);
 
-        i = pci_set_mwi(pdev);
+	i = pci_set_mwi(pdev);
 	if (i){
-                dev_err(&pdev->dev, "Failed to enable PCI Memory-Write-Invalidate\n");
-                goto disable;
-        }
+			dev_err(&pdev->dev, "Failed to enable PCI Memory-Write-Invalidate\n");
+			goto disable;
+	}
 
-        printk(KERN_INFO "rtl8139_probe() is called: %d\n",__LINE__);
+	printk(KERN_INFO "rtl8139_probe() is called: %d\n",__LINE__);
 		
-        /** 
+    /** 
 	  * Enable bus mastering of the device. This will set bus master bit 
 	  * in the PCI_COMMAND register. Device now can act as a master on 
 	  * the address bus 
-	  */
+	*/
 
-         /* CODE HERE */ 
-         pci_set_master(pdev);
+	/* CODE HERE */ 
+	pci_set_master(pdev);
 
 	/**
 	  * PCI has API to access PCI configuration space such as:
@@ -405,42 +247,42 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	  */
 
 	/* CODE HERE */
-        mmio_start = pci_resource_start(pdev, BAR1);
+	mmio_start = pci_resource_start(pdev, BAR1);
 
-        mmio_len = pci_resource_len(pdev, BAR1); 
-        if (mmio_len < CP_REGS_SIZE) {
-		i = -EIO;
-		dev_err(&pdev->dev, "MMIO resource (%llx) too small\n",
-		       (unsigned long long)mmio_len);
-		goto mwi;
+	mmio_len = pci_resource_len(pdev, BAR1); 
+	if (mmio_len < CP_REGS_SIZE) {
+	i = -EIO;
+	dev_err(&pdev->dev, "MMIO resource (%llx) too small\n",
+			(unsigned long long)mmio_len);
+	goto mwi;
 	}
 
 
-        /**
+    /**
 	  * Test if pci BAR 1 is really device MMIO region 
 	  * otherwise, goto disable the device
-	  */
+	*/
 
 	/* CODE HERE */
-        if(!mmio_start || ((pci_resource_flags(pdev, BAR1) & IORESOURCE_MEM) == 0)){
-                dev_err(&pdev->dev, "no Memory resource at PCI BAR #1\n");
-                goto mwi;
-        }
+	if(!mmio_start || ((pci_resource_flags(pdev, BAR1) & IORESOURCE_MEM) == 0)){
+			dev_err(&pdev->dev, "no Memory resource at PCI BAR #1\n");
+			goto mwi;
+	}
         
-        /* claim or take ownership of the IO Memory region. If fail goto 
+    /* claim or take ownership of the IO Memory region. If fail goto 
  	 * disable the device
  	 * */
 
 	/* CODE HERE */
-        if(request_mem_region(mmio_start, mmio_len, DRV_NAME) == NULL){
-                dev_err(&pdev->dev, "I/O resource 0x%lx @ 0x%lx busy\n",
-                mmio_len, mmio_start);
-                goto mwi;
-        }
+	if(request_mem_region(mmio_start, mmio_len, DRV_NAME) == NULL){
+			dev_err(&pdev->dev, "I/O resource 0x%lx @ 0x%lx busy\n",
+			mmio_len, mmio_start);
+			goto mwi;
+	}
 
-        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+	printk(KERN_INFO "pci_template: %d\n",__LINE__);
 
-        /** 
+    /** 
 	  * ioremap Device MMIO region: ioremap (address, size) function must 
 	  * be called to map the device memory into a virtual memory address. 
 	  * This function does not allocate any memory, it sets up the 
@@ -453,33 +295,33 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
           * Use ioread/iowrite|b|w|l() instead.
           * goto release in case of ioremap() failure to provide valid 
 	  * virtual address
-          */
+    */
 
 	 /* CODE HERE */
-         ioaddr = ioremap(mmio_start, mmio_len);
-         if(ioaddr == NULL){
-                goto release;
-         }
-        
-        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+	ioaddr = ioremap(mmio_start, mmio_len);
+	if(ioaddr == NULL){
+		goto release;
+	}
+	
+	printk(KERN_INFO "pci_template: %d\n",__LINE__);
 
 	/**
-          * Check if 32-bit DMA capability is supported on this platform
-          * Use for declaring any device with more (or less) than 32-bit 
-          * bus master capability
+	 * Check if 32-bit DMA capability is supported on this platform
+	 * Use for declaring any device with more (or less) than 32-bit 
+	 * bus master capability
 	  * goto unmap if unable to set DMA 32 bit mask
-          */
+	*/
 
 	/* CODE HERE */
-        err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-        if(!err)
-                err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-        if(err){
-                printk(KERN_WARNING DRV_NAME ": No suitable DMA available.\n");
-                goto release;
-        }
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	if(!err)
+			err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+	if(err){
+			printk(KERN_WARNING DRV_NAME ": No suitable DMA available.\n");
+			goto release;
+	}
 
-        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+	printk(KERN_INFO "pci_template: %d\n",__LINE__);
 
 	/** 
 	  * Linux Network Stack works with network device not the PCI device. 
@@ -490,20 +332,20 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	  */
 
 	 /* CODE HERE */
-         dev = alloc_etherdev(sizeof(struct rtl8139));
-         if(!dev){
-                printk(KERN_WARNING DRV_NAME ": Failed to allocate an ethernet network device.\n");
-                goto unmap;
-         }
-         
-        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+	dev = alloc_etherdev(sizeof(struct rtl8139));
+	if(!dev){
+		printk(KERN_WARNING DRV_NAME ": Failed to allocate an ethernet network device.\n");
+		goto unmap;
+	}
+		
+	printk(KERN_INFO "pci_template: %d\n",__LINE__);
 
 	/** 
  	 * Set the device name to DRV_NAME instead of eth via memcpy 
  	 */ 
 
 	/* CODE HERE */
-        memcpy(dev->name, DRV_NAME, strlen(DRV_NAME));
+    memcpy(dev->name, NETDEV_NAME, strlen(NETDEV_NAME));
 
 
  	/* sysfs stuff. Sets up device link in /sys/class/net/interface_name */
@@ -515,65 +357,59 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	  */
 
 	/* CODE HERE */
-        priv = netdev_priv(dev);
+	priv = netdev_priv(dev);
 
-        spin_lock_init(&priv->lock);
-        priv->mmio_addr = ioaddr;
-        priv->regs_len = mmio_len;
-        priv->pci_dev = pdev;  
-        priv->stats = dev->stats;
+	spin_lock_init(&priv->lock);
+	priv->mmio_addr = ioaddr;
+	priv->regs_len = mmio_len;
+	priv->pci_dev = pdev;  
+	priv->stats = dev->stats;
 
 	/**
 	  * Fill in the net device with MMIO address and irq obtained 
 	  * from the PCI configuration space 
-          * These fields are base_addr and irq field in net_device structure. 
+      * These fields are base_addr and irq field in net_device structure. 
 	  * Ifconfig reads these values from net device structure and print it
 	  * PCI device gets IRQ assigned automatically - No poking, probing 
 	  * guessing needed. 
 	  * 
-          * Assigned IRQ number is placed in pci pdev structure (pdev->irq) 
-          * passed as argument to PCI device probe.
-          */
+      * Assigned IRQ number is placed in pci pdev structure (pdev->irq) 
+      * passed as argument to PCI device probe.
+      */
 
 	/* CODE HERE */
-        dev->irq = pdev->irq;
-        dev->base_addr = mmio_start;
+	dev->irq = pdev->irq;
+	dev->base_addr = mmio_start;
 
 	/**
-          * Interface address: MAC and Broadcast Address
-          * RealTek8139 datasheet states that the first 6 bytes of ioaddr 
-          * (offset 0x0) contain the hardware address of the device. We need to 
-          * fill the net device with MAC and broadcast address. We need to 
-          * fill net device dev->dev_addr[6] and dev->broadcast[6] arrays.
-          * For broadcast address fill all octets with 0xff. Use readb (or 
-          * ioreadb) to read from IO memory address, ioaddr
+	 * Interface address: MAC and Broadcast Address
+	 * RealTek8139 datasheet states that the first 6 bytes of ioaddr 
+	 * (offset 0x0) contain the hardware address of the device. We need to 
+	 * fill the net device with MAC and broadcast address. We need to 
+	 * fill net device dev->dev_addr[6] and dev->broadcast[6] arrays.
+	 * For broadcast address fill all octets with 0xff. Use readb (or 
+	 * ioreadb) to read from IO memory address, ioaddr
 	  */
 
-         /* read MAC address from EEPROM */
-	// addr_len = read_eeprom (regs, 0, 8) == 0x8129 ? 8 : 6;
-	// for (i = 0; i < 3; i++)
-	// 	((__le16 *) (dev->dev_addr))[i] =
-	// 	    cpu_to_le16(read_eeprom (regs, i + 7, addr_len));
-
 	/* CODE HERE */
-        memset(dev->broadcast, 0xff, 6);
-       
-        for(i=0; i<3; i++){
-                ((__le16 *) (dev->dev_addr))[i] =
-		    cpu_to_le16(ioread16(ioaddr + i));
+	memset(dev->broadcast, 0xff, 6);
+	
+	for(i=0; i<3; i++){
+			((__le16 *) (dev->dev_addr))[i] =
+		cpu_to_le16(ioread16(ioaddr + i));
 
-        }
+	}
 
-        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+	printk(KERN_INFO "pci_template: %d\n",__LINE__);
 
-        /* Length of Ethernet frame. It is a "hardware header length", number 
+    /* Length of Ethernet frame. It is a "hardware header length", number 
  	 * of octets that lead the transmitted packet before IP header, or 
  	 * other protocol information.  Value is 14 for Ethernet interfaces.
-         */
+    */
 
-        dev->hard_header_len = 14;
+    dev->hard_header_len = 14;
 
-        /** 
+    /** 
 	 *  fill in the net device with our device methods that we will write 
 	 *  for our driver in phase 2. 
 	 *  Required methods are: open, stop, hard_start_xmit, getstats
@@ -590,42 +426,41 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 // 	priv->net_dev->netdev_ops->ndo_get_stats = rtl8139_get_stats;
 // #endif
 
-        dev->netdev_ops = &rtl8139_netdev_ops;
+    dev->netdev_ops = &rtl8139_netdev_ops;
 
 	/* Finally register the net device. An unused ethernet interface 
-         * is alloted
-         */
+	* is alloted
+	*/
 
-        /* CODE HERE */
-        if(register_netdev(dev)){
-                dev_err(&pdev->dev, "Failed to register net device\n");
-                goto freedev;
-        }
+	/* CODE HERE */
+	if(register_netdev(dev)){
+			dev_err(&pdev->dev, "Failed to register net device\n");
+			goto freedev;
+	}
 
-        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+	printk(KERN_INFO "pci_template: %d\n",__LINE__);
 
-        /**
-          * You can stuff net device structure into pci_driver structure
-          * using pci_set_drvdata( struct pci_driver *, void *)  That can 
-          * be retrieved later using pci_get_drvdata(struct pci_driver *)
-          * for example, in remove or other pci functions
-          */
+	/**
+	 * You can stuff net device structure into pci_driver structure
+	 * using pci_set_drvdata( struct pci_driver *, void *)  That can 
+	 * be retrieved later using pci_get_drvdata(struct pci_driver *)
+	 * for example, in remove or other pci functions
+	 */
 
 	/* CODE HERE */	
-        pci_set_drvdata(pdev, (void*)dev);
+	pci_set_drvdata(pdev, (void*)dev);
 
-        printk(KERN_INFO "pci_template: %d\n",__LINE__);
+	printk(KERN_INFO "pci_template: %d\n",__LINE__);
 
-        return 0;
+	return 0;
 
 	/**
 	 * cleanup on failure. goto is a better way to deal with serious 
 	 * error conditions
 	 */
 
-
 freedev:
-        free_netdev(dev);
+    free_netdev(dev);
 
 unmap:
 	pci_iounmap(pdev, ioaddr);
@@ -634,12 +469,11 @@ release:
 	pci_release_regions(pdev);
 
 mwi:
-        pci_clear_mwi(pdev);
+    pci_clear_mwi(pdev);
 
 disable:
 	pci_disable_device(pdev);
 	return (-ENODEV);
-
 }
 
 
@@ -654,83 +488,65 @@ static int rtl8139_open(struct net_device *dev)
 
 static int rtl8139_stop(struct net_device *dev) 
 {
-        printk("rtl8139_stop: Add code later \n");
+    printk("rtl8139_stop: Add code later \n");
 	netif_stop_queue(dev); /* transmission queue stop */
-        return 0;
+    return 0;
 }
 
 static int rtl8139_start_xmit(struct sk_buff *skb, struct net_device *dev) 
 {
-        printk("rtl8139_start_xmit: Add code later\n");
+    printk("rtl8139_start_xmit: Add code later\n");
 	dev_kfree_skb(skb); /* Just free it for now */
-
-        return 0;
-}
-
-
-static void __rtl8139_get_stats(struct rtl8139 *priv)
-{
-	/* only lower 24 bits valid; write any value to clear */
-	priv->stats.rx_missed_errors += (privr32 (RxMissed) & 0xffffff);
-	privw32 (RxMissed, 0);
+    return 0;
 }
 
 
 static struct net_device_stats * rtl8139_get_stats(struct net_device *dev) 
 {
-        printk("rtl8139_get_stats: Add code later\n");
+    printk("rtl8139_get_stats: Add code later\n");
 
-        /**
+    /**
 	 * You cannot return NULL, make sure to return the address 
 	 * of net_dev_stat that is in device private structure
 	 */
 
-        struct rtl8139 *priv; 
-	unsigned long flags;
-
-	/* The chip only need report frame silently dropped. */
-        priv = netdev_priv(dev);
-	spin_lock_irqsave(&priv->lock, flags);
- 	if (netif_running(dev) && netif_device_present(dev))
- 		__rtl8139_get_stats(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return &dev->stats;
+    struct rtl8139 *priv; 
+	priv = netdev_priv(dev);
+	return &priv->stats;
 }
 
 /* PCI remove routine - required else can't rmmod */
-// static void __devexit rtl8139_remove( struct pci_dev *pdev )
 static void rtl8139_remove( struct pci_dev *pdev )
 {
-        struct net_device *dev;
-        struct rtl8139 *priv;
-        /**
-         * Get address of netdevice, device private structures and ioaddr 
-         * Unregister and free netdevice
-         * Unmap the device MMIO region. Also set: priv->mmio_addr = NULL 
-         * Release the ownership of IO memory region
-         * call: pci_set_drvdata(pdev, NULL)
-         * Disable PCI device
-         */
+	struct net_device *dev;
+	struct rtl8139 *priv;
+	/**
+	 * Get address of netdevice, device private structures and ioaddr 
+	 * Unregister and free netdevice
+	 * Unmap the device MMIO region. Also set: priv->mmio_addr = NULL 
+	 * Release the ownership of IO memory region
+	 * call: pci_set_drvdata(pdev, NULL)
+	 * Disable PCI device
+	 */
 
-        /* CODE HERE */
-        dev = pci_get_drvdata(pdev);
-        priv = netdev_priv(dev);
+	/* CODE HERE */
+	dev = pci_get_drvdata(pdev);
+	priv = netdev_priv(dev);
 
-        /* Unregister and free netdevice */
-        unregister_netdev(dev);
-        free_netdev(dev);
-        /* Unmap the device MMIO region */
-        pci_iounmap(pdev, priv->mmio_addr);
-        priv->mmio_addr = NULL;
-        /* Release the ownership of IO memory region */
-        pci_release_regions(pdev);	
-        /* clear priv_data */
-        pci_set_drvdata(pdev, NULL);
-        /* Disable MWI */
-        pci_clear_mwi(pdev);
-        /* Disable PCI device */
-        pci_disable_device(pdev);
+	/* Unregister and free netdevice */
+	unregister_netdev(dev);
+	free_netdev(dev);
+	/* Unmap the device MMIO region */
+	pci_iounmap(pdev, priv->mmio_addr);
+	priv->mmio_addr = NULL;
+	/* Release the ownership of IO memory region */
+	pci_release_regions(pdev);	
+	/* clear priv_data */
+	pci_set_drvdata(pdev, NULL);
+	/* Disable MWI */
+	pci_clear_mwi(pdev);
+	/* Disable PCI device */
+	pci_disable_device(pdev);
 }
 
 
@@ -738,17 +554,17 @@ static void rtl8139_remove( struct pci_dev *pdev )
 static int __init pci_rtl8139_init(void)
 {
 	/* CODE HERE */
-        if(pci_register_driver(&rtl8139_driver)){
-                printk(KERN_ERR DRV_NAME ": Failed to register the device.\n");
-                return -1;
-        }
-        return 0;
+	if(pci_register_driver(&rtl8139_driver)){
+			printk(KERN_ERR DRV_NAME ": Failed to register the device.\n");
+			return -1;
+	}
+	return 0;
 }
 
 static void __exit pci_rtl8139_exit(void)
 {
 	/* CODE HERE */
-        pci_unregister_driver(&rtl8139_driver);
+	pci_unregister_driver(&rtl8139_driver);
 }
 
 module_init(pci_rtl8139_init);
