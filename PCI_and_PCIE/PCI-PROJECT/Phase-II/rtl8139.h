@@ -6,6 +6,7 @@
 #include <linux/spinlock.h>
 
 /* Start of RealTek rtl8139 specs*/
+#define NET_IP_ALIGN        2 
 
 /* min and max supported ethernet frame size. Maximum  must be at least (dev->mtu+14+4).*/
 #define MAX_ETH_FRAME_SIZE      1536
@@ -104,7 +105,6 @@
 #define WRITEW_F(val16 , regaddr)   do { iowrite16 ( (val16), (regaddr) ); ioread16 (regaddr); } while (0)
 #define WRITEL_F(val32 , regaddr)   do { iowrite32 ( (val32), (regaddr) ); ioread32 (regaddr); } while (0)
 
-#define RTL_W8(reg, val8)	iowrite8 ((val8), ioaddr + (reg))
 // Supported VendorID and DeviceID
 
 #define VENDOR_ID  0x10ec  // Realtek Semiconductor Company, LTD
