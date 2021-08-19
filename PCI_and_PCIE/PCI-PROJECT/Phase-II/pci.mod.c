@@ -44,18 +44,18 @@ __used __section(__versions) = {
 	{ 0xe579f4bb, "skb_put" },
 	{ 0x976ee327, "__netdev_alloc_skb" },
 	{ 0x4c0e404a, "netif_tx_wake_queue" },
-	{ 0xc5534d64, "ioread16" },
-	{ 0x6a86bc1, "iowrite16" },
 	{ 0xe484e35f, "ioread32" },
 	{ 0x4a453f53, "iowrite32" },
 	{ 0xeae3dfd6, "__const_udelay" },
-	{ 0xf10de535, "ioread8" },
-	{ 0x848d372e, "iowrite8" },
-	{ 0x1f309b21, "dma_free_attrs" },
-	{ 0xc1514a3b, "free_irq" },
 	{ 0x885de096, "_dev_err" },
 	{ 0xae45846e, "dma_alloc_attrs" },
 	{ 0x2072ee9b, "request_threaded_irq" },
+	{ 0x1f309b21, "dma_free_attrs" },
+	{ 0xc1514a3b, "free_irq" },
+	{ 0xc5534d64, "ioread16" },
+	{ 0x6a86bc1, "iowrite16" },
+	{ 0xf10de535, "ioread8" },
+	{ 0x848d372e, "iowrite8" },
 	{ 0xf38a3177, "pci_disable_device" },
 	{ 0x210b2403, "pci_clear_mwi" },
 	{ 0x75cf665f, "pci_release_regions" },
@@ -72,4 +72,4 @@ MODULE_INFO(depends, "");
 
 MODULE_ALIAS("pci:v000010ECd00008139sv*sd*bc*sc*i*");
 
-MODULE_INFO(srcversion, "0DD3D140A13A68380187C2C");
+MODULE_INFO(srcversion, "C54E8AC967AC5DBF84865BB");

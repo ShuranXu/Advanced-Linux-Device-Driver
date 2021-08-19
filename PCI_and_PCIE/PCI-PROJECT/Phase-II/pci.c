@@ -451,7 +451,6 @@ static int rtl8139_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * error conditions
 	 */
 
-
 freedev:
     free_netdev(dev);
 
@@ -514,7 +513,7 @@ static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance)
 		 *  queue is not flow controlled 
 		 */
 
-		while((priv->dirty_tx != priv->cur_tx) || netif_queue_stopped(netdev))  // ?
+		while((priv->dirty_tx != priv->cur_tx) || netif_queue_stopped(netdev))  // why use this condition ?
 		{
 			/**
 			 * TSD0-3 contains the status of transmit packet
@@ -737,7 +736,6 @@ static int rtl8139_open(struct net_device *netdev)
 
 	/* Get address of private structure using netdev_priv(netdev) */
 
-
 	/* CODE HERE */
 	struct rtl8139 *priv; 
 	int rc;
@@ -838,12 +836,74 @@ irq:
 	return -1;
 }
 
-static int rtl8139_stop(struct net_device *dev) 
+// static int rtl8139_stop(struct net_device *dev) 
+// {
+//     printk("rtl8139_stop: Add code later \n");
+// 	netif_stop_queue(dev); /* transmission queue stop */
+//     return 0;
+// }
+
+static int rtl8139_stop(struct net_device *netdev)
 {
-    printk("rtl8139_stop: Add code later \n");
-	netif_stop_queue(dev); /* transmission queue stop */
+	/* Get address of private structure and ioaddr */
+
+	/* CODE HERE */
+    unsigned long flags;
+	struct rtl8139 *priv; 
+	priv = netdev_priv(netdev);
+	void *__iomem ioaddr = priv->mmio_addr;
+
+	/* Notify protocol layer not to send any more packet to this interface */
+
+	/* CODE HERE */
+	netif_stop_queue(netdev);
+
+	printk("Entering %s\n", __FUNCTION__);
+
+    printk ("\nrtl8139_stop: shuting down the interface");
+
+	/* Serialize access by calling spin_lock_irqsave */
+
+	/* CODE HERE */
+	spin_lock_irqsave(&priv->lock, flags);
+
+    /* Stop the chip's Tx and Rx DMA */
+	
+	/* CODE HERE */
+	WRITEB_F(0, ioaddr + CR);
+
+    /* Disable all interrupts by clearing the interrupt mask. */
+
+    /* CODE HERE */
+	WRITEW_F(0,ioaddr + IMR);
+
+	/* Update the error counts. */
+	netdev->stats.rx_missed_errors += readl(ioaddr+MPC);
+	writel(0, ioaddr + MPC);
+
+	/* Release spin lock */
+
+	/* CODE HERE */
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	/* Free irq */
+
+    /* CODE HERE */
+	free_irq(priv->pci_dev->irq, netdev);
+
+	/* Free transmit and recieve consistent buffers */
+
+	/* CODE HERE */
+	pci_free_consistent(priv->pci_dev, TOTAL_TX_BUF_SIZE, priv->tx_bufs, priv->tx_bufs_dma);
+	pci_free_consistent(priv->pci_dev, TOTAL_RX_BUF_SIZE, priv->rx_ring, priv->rx_ring_dma);
+	priv->rx_ring = NULL;
+	priv->tx_bufs = NULL;
+
+	printk("Exiting %s\n", __FUNCTION__);
+
     return 0;
 }
+
 
 // static int rtl8139_start_xmit(struct sk_buff *skb, struct net_device *dev) 
 // {
