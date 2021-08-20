@@ -25,7 +25,7 @@
 
 static int dev_major = 0;
 
-/* Just internal representation of the our block device
+/* Just internal representation of our block device. It
  * can hold any useful data */
 struct block_dev {
     sector_t capacity;

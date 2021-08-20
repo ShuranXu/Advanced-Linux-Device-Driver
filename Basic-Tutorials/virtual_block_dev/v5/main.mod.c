@@ -1,6 +1,5 @@
-#include <linux/module.h>
-#define INCLUDE_VERMAGIC
 #include <linux/build-salt.h>
+#include <linux/module.h>
 #include <linux/vermagic.h>
 #include <linux/compiler.h>
 
@@ -10,7 +9,7 @@ MODULE_INFO(vermagic, VERMAGIC_STRING);
 MODULE_INFO(name, KBUILD_MODNAME);
 
 __visible struct module __this_module
-__section(".gnu.linkonce.this_module") = {
+__section(.gnu.linkonce.this_module) = {
 	.name = KBUILD_MODNAME,
 	.init = init_module,
 #ifdef CONFIG_MODULE_UNLOAD
@@ -24,26 +23,26 @@ MODULE_INFO(retpoline, "Y");
 #endif
 
 static const struct modversion_info ____versions[]
-__used __section("__versions") = {
-	{ 0x243c757b, "module_layout" },
-	{ 0x7f89e2e9, "blk_cleanup_queue" },
-	{ 0x329ae093, "put_disk" },
-	{ 0xa2232a30, "del_gendisk" },
-	{ 0x6d4af13f, "device_add_disk" },
-	{ 0xe8f9ec41, "set_capacity" },
-	{ 0xa9f0103a, "__alloc_disk_node" },
+__used __section(__versions) = {
+	{ 0xa4b86400, "module_layout" },
+	{ 0x245b8564, "blk_cleanup_queue" },
+	{ 0x5fb50da5, "put_disk" },
+	{ 0xa5b35e62, "del_gendisk" },
+	{ 0x27e0a3ff, "device_add_disk" },
+	{ 0x1b81e402, "__alloc_disk_node" },
 	{ 0x37a0cba, "kfree" },
-	{ 0x21b2282f, "blk_mq_init_sq_queue" },
+	{ 0xe0fe5f5d, "blk_mq_init_sq_queue" },
 	{ 0xb8b9f817, "kmalloc_order_trace" },
 	{ 0xb5a459dc, "unregister_blkdev" },
-	{ 0x3b29a28b, "kmem_cache_alloc_trace" },
-	{ 0x8b1f4bcb, "kmalloc_caches" },
-	{ 0x720a27a7, "__register_blkdev" },
-	{ 0xf80edb93, "__blk_mq_end_request" },
-	{ 0x78ad7aea, "blk_update_request" },
+	{ 0xb3a666c0, "kmem_cache_alloc_trace" },
+	{ 0x31ca542f, "kmalloc_caches" },
+	{ 0x71a50dbc, "register_blkdev" },
+	{ 0xd4b07586, "__blk_mq_end_request" },
+	{ 0xe6a14f29, "blk_update_request" },
+	{ 0x56470118, "__warn_printk" },
 	{ 0x7cd8d75e, "page_offset_base" },
 	{ 0x97651e6c, "vmemmap_base" },
-	{ 0x2139b17e, "blk_mq_start_request" },
+	{ 0x1ffad3a4, "blk_mq_start_request" },
 	{ 0xc5850110, "printk" },
 	{ 0xbdfb6dbb, "__fentry__" },
 };
