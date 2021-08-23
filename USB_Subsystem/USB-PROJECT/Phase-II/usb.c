@@ -114,7 +114,6 @@ static int rtl8150_probe(struct usb_interface *intf,
 	/* CODE HERE */
 	memcpy(dev->name, DRV_NAME, strlen(DRV_NAME));
 
-
     /* sysfs stuff. Sets up device link in /sys/class/net/interface_name */
     SET_NETDEV_DEV(dev, &intf->dev);
 
@@ -267,8 +266,6 @@ static void read_bulk_callback(struct urb *urb)
 	int status;
 
 	// Get access to priv struct and status of urb
-	
-	/* CODE HERE */
 	priv = urb->context;
 	if(!priv)
 		return;
@@ -350,7 +347,6 @@ static void intr_callback(struct urb *urb)
 	}
 
 	// We get here when status is set to success
-
 	d = urb->transfer_buffer;
 	if (d[0] & TSR_ERRORS) {
 			priv->stats.tx_errors++;
@@ -501,8 +497,6 @@ static int rtl8150_open(struct net_device *netdev)
 	rtl8150_hardware_start(netdev);
 
 	/* Notify the protocol layer so that it can start sending packet */
-
-	/* CODE HERE */
 	netif_start_queue(netdev);
 
 	printk(KERN_INFO "Exiting %s\n", __FUNCTION__);
@@ -666,17 +660,17 @@ static int rtl8150_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 static struct net_device_stats* rtl8150_get_stats(struct net_device *dev)
 {
-        struct rtl8150 *priv = netdev_priv( dev );
+	struct rtl8150 *priv = netdev_priv( dev );
 
-        printk("dev_get_stats: Add code later\n");
+	printk("dev_get_stats: Add code later\n");
 
-        /**
-         * You cannot return NULL, make sure to return the address 
-         * of net_dev_stat that is in device private structure
-         */
+	/**
+	 * You cannot return NULL, make sure to return the address 
+	 * of net_dev_stat that is in device private structure
+	 */
 
-        /* CODE HERE */
-		return &priv->stats;
+	/* CODE HERE */
+	return &priv->stats;
 }
 
 /* USB disconnect routine - required else can't rmmod */
@@ -695,7 +689,7 @@ static void rtl8150_disconnect(struct usb_interface *intf)
 		 * Call usb_set_intfdata(intf, NULL) to free memory	
 		 */
 
-	  /* CODE HERE */
+	  	/* CODE HERE */
 		unregister_netdev(priv->netdev);
 		free_netdev(priv->netdev);
 		usb_set_intfdata(intf, NULL);
