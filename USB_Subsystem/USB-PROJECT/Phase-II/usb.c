@@ -318,6 +318,7 @@ reschedule:     //submit again for next packet receive from the device
 	skb_reserve(priv->rx_skb, 2);
 	usb_fill_bulk_urb(priv->rx_urb, priv->udev, usb_rcvbulkpipe(priv->udev,1),
 		priv->rx_skb->data, RTL8150_MTU, read_bulk_callback, priv);
+	usb_submit_urb(priv->rx_urb);
 	  
     return;
 }
@@ -373,7 +374,6 @@ static void intr_callback(struct urb *urb)
 
 resubmit:
 	usb_submit_urb (urb, GFP_ATOMIC);
-
 	return;
 }
 
@@ -428,9 +428,9 @@ reenable:	//enable the queue
 
 	/* CODE HERE */
 	netif_start_queue(priv->netdev);
-
     return;
 }
+
 
 //Net device routines 
 static int rtl8150_open(struct net_device *netdev)
