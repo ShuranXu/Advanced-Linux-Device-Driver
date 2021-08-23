@@ -246,7 +246,9 @@ static int rtl8150_probe(struct usb_interface *intf,
 	  * device memory location IDR 
 	  */ 
 
-	  /* CODE HERE */
+	/* CODE HERE */
+	memset(dev->broadcast, 0xff, 6);
+
 	rc = usb_control_msg(priv->udev, usb_rcvctrlpipe(priv->udev, 0), RTL8150_REQ_GET_REGS,
 	RTL8150_REQT_READ, IDR, 0, priv->netdev->dev_addr, sizeof(priv->netdev->dev_addr),
 		500);

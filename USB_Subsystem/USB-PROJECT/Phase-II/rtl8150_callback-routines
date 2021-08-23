@@ -24,7 +24,7 @@ static void read_bulk_callback(struct urb *urb)
         }
 
         // we come here after receiving success status of urb
-        res = urb->actual_length;       //Amount of data receieved in urb
+        res = urb->actual_length;       //Amount of data received in urb
         pkt_len = res - 4;
 
         /**

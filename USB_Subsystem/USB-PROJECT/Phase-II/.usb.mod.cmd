@@ -1,0 +1,1 @@
+cmd_/home/shuran/Advanced-Linux-Device-Driver/USB_Subsystem/USB-PROJECT/Phase-II/usb.mod := { echo  /home/shuran/Advanced-Linux-Device-Driver/USB_Subsystem/USB-PROJECT/Phase-II/usb.o;  echo; } > /home/shuran/Advanced-Linux-Device-Driver/USB_Subsystem/USB-PROJECT/Phase-II/usb.mod
