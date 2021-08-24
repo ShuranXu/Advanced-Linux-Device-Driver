@@ -517,7 +517,34 @@ static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance)
 		 *  queue is not flow controlled 
 		 */
 
-		while((priv->dirty_tx != priv->cur_tx) || netif_queue_stopped(netdev))  // why use this condition ?
+		/**
+		 * @brief: Explanation of the while condition:
+		 * 
+		 * dirty_tx keeps track of in use tx descriptors, while cur_tx keeps a count 
+		 * of available tx descriptor. In start_xmit netdevice method, driver loads the 
+		 * packet in cur_tx descriptor and then increment by: 
+		 *  cur_tx = cur_tx + 1 % NUM_TX_DESC . 
+		 * 
+		 * After that driver compares it with dirty_tx. If equal, then all tx descriptors 
+		 * are in use.  At that time flow_control is enabled to prevent protocol stack 
+		 * to send any more packets. 
+		 * 
+		 * In the below code, driver continue to process packets as long as there are in 
+		 * use (dirty) tx descriptors or queue is flow controlled. Every time driver process 
+		 * one dirty descriptor, it will increment it by:  dirty_tx = (dirty_tx + 1) % 4 . 
+		 * In next iteration, if dirty_tx is equal to cur_tx, then no more processing is 
+		 * required, considering no dirty_tx left.  If the queue is flow controlled, driver 
+		 * will disabled flow control flag considering driver has processed at least one 
+		 * dirty descriptor, as part of servicing tx interrupt.
+		 * 
+		 * netif_queue_stopped() has nothing to do with the interrupt processing. It is the way 
+		 * for driver to hint protocol stack that no more tx descriptors available and thus 
+		 * don't send any more packets.  After processing tx interrupt, driver calls 
+		 * netif_wake_queue(dev), considering there are tx descriptor(s) available and thus we 
+		 * have room to accept one or more packets from the protocol stack.
+		 */
+
+		while((priv->dirty_tx != priv->cur_tx) || netif_queue_stopped(netdev)) 
 		{
 			/**
 			 * TSD0-3 contains the status of transmit packet
